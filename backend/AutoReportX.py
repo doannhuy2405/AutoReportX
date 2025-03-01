@@ -1,190 +1,51 @@
-from fastapi import FastAPI, HTTPException
-import jwt
-from pymongo import MongoClient
-from pydantic import BaseModel
-from dotenv import load_dotenv
-import os
-import bcrypt
-import uvicorn
-from datetime import datetime, timedelta
-from fastapi.middleware.cors import CORSMiddleware
-from flask import Flask, jsonify, request
-from flask_cors import CORS
-# import subprocess
-
-from pydantic import BaseModel
-from AutoReportX import run_gradio #Import hàn từ AutoReportX
-import asyncio
-
-# Load biến môi trường
-load_dotenv()
-
-# Khởi tạo FastAPI
-app = FastAPI()
-
-# Cấu hình CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Kết nối MongoDB
-MONGO_URI = os.getenv("MONGO_URI")
-if not MONGO_URI:
-    raise ValueError("MONGO_URI không được tìm thấy trong biến môi trường!")
-
-try:
-    client = MongoClient(MONGO_URI)
-    db = client["mydatabase"]
-    users_collection = db["users"]
-    collection = db["reports"]
-except Exception as e:
-    raise ValueError(f"Lỗi kết nối MongoDB: {e}")
-
-# Load SECRET_KEY
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    raise ValueError("SECRET_KEY không được tìm thấy trong biến môi trường!")
-
-# Schema dữ liệu người dùng
-class UserRegister(BaseModel):
-    fullname: str
-    email: str
-    username: str
-    password: str
-
-class UserLogin(BaseModel):
-    username: str
-    password: str
-
-# Hàm hash password
-def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
-# Hàm kiểm tra password
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    try:
-        print("🔹 Kiểm tra mật khẩu:", plain_password)
-        print("🔹 Mật khẩu hash:", hashed_password)
-
-        # Kiểm tra xem hashed_password có bị mất ký tự không
-        if not hashed_password.startswith("$2b$"):
-            print("⚠️ Mật khẩu hash không hợp lệ!")
-            return False
-
-        result = bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
-        print("🔹 Kết quả kiểm tra:", result)
-        return result
-    except Exception as e:
-        print("❌ Lỗi khi kiểm tra mật khẩu:", e)
-        return False
-
-
-# Hàm tạo JWT token
-def create_token(data: dict, expires_delta: timedelta = timedelta(hours=1)):
-    to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm="HS256")
-
-# API Đăng ký người dùng
-@app.post("/auth/register")
-async def register(user: UserRegister):
-    print("Dữ liệu từ frontend:", user.dict())  # In dữ liệu nhận được từ frontend
-
-    if users_collection.find_one({"email": user.email}):
-        raise HTTPException(status_code=400, detail="Email đã tồn tại!")
-    if users_collection.find_one({"username": user.username}):
-        raise HTTPException(status_code=400, detail="Username đã tồn tại!")
-
-    hashed_password = hash_password(user.password)
-    
-    new_user = {
-        "fullname": user.fullname,
-        "email": user.email,
-        "username": user.username,
-        "password": hashed_password
-    }
-    users_collection.insert_one(new_user)
-    
-    return {"message": "Đăng ký thành công!"}
-
-
-# API Đăng nhập người dùng
-@app.post("/auth/login")
-async def login(user: UserLogin):
-    print("Dữ liệu từ frontend:", user.dict()) 
-    db_user = users_collection.find_one({"username": user.username})
-    if not db_user or not verify_password(user.password, db_user["password"]):
-        raise HTTPException(status_code=400, detail="Sai tài khoản hoặc mật khẩu!")
-
-    token = create_token({"username": db_user["username"], "email": db_user["email"]})
-    return {"token": token, "username": db_user["username"], "fullname": db_user["fullname"]}
-
-# class ReportRequest(BaseModel):
-#     user_query: str  # Thay vì user_id, ta nhập nội dung tìm kiếm
-#     iteration_limit: int = 5  # Số vòng lặp tối đa
-
-
-# @app.post("/auth/generate_report")
-# async def generate_report(request: ReportRequest):
-#     # Gọi hàm của AutoReportX để tạo báo cáo
-#     report_content = run_gradio(request.user_query, request.iteration_limit)
-
-#     # Trả về nội dung báo cáo cho frontend
-#     return {"status": "success", "report": report_content}
-
-# Giả lập dữ liệu người dùng
-user_data = {
-    "avatar": "../my-vue-app/src/assets/Avatar.jpg",  # Ảnh đại diện giả lập
-    "name": "Đoàn Thị Như Ý"
-}
-
-@app.route("/user", methods=["GET"])
-def get_user():
-    return jsonify(user_data), 200
-
-#===========================================================================================
 import asyncio
 import aiohttp
 import gradio as gr
 import io
+from gradio.components import File
 import os
 import re
 from tavily import TavilyClient
 from together import Together
 from openai import OpenAI
 import nest_asyncio
-import pypandoc
-import pdfkit
+nest_asyncio.apply()
+
+# ===============================================
+# Configuration Constants
+# ===============================================
 from dotenv import load_dotenv
 
-nest_asyncio.apply()
-load_dotenv()
+load_dotenv()  # Load biến môi trường từ file .env
 
-# Configuration Constants
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 OPENAI_API_KEY = os.getenv("MY_OPENAI_API_KEY")
 
-DEFAULT_MODEL_TOGETHER = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B"
-FINAL_REPORT_MODEL_OPENAI = "o1-mini"
+print(f"TOGETHER_API_KEY: {TOGETHER_API_KEY}") 
+print(f"TAVILY_API: {TAVILY_API_KEY}") 
+print(f"OPENAI_API_KEY: {OPENAI_API_KEY}") 
 
+DEFAULT_MODEL_TOGETHER = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B"
+FINAL_REPORT_MODEL_OPENAI = "o1-mini"  # Supports up to ~65k tokens for completion
+
+# Lựa chọn chunk size & limit
 MAX_LINKS_PER_ITERATION = 30
-MAX_TOKENS_INPUT = 40000
-CHUNK_SIZE = 24000
-SUMMARIZE_COMPLETION_TOKENS = 2000
-FINAL_COMPLETION_TOKENS = 64000
+MAX_TOKENS_INPUT = 40000  # Tăng/giảm tùy ý, 40k an toàn
+CHUNK_SIZE = 24000        # Mỗi chunk < 24k chars
+SUMMARIZE_COMPLETION_TOKENS = 2000  # Summarize chunk
+FINAL_COMPLETION_TOKENS = 64000     # <= 65536 limit
 
 together_client = Together(api_key=TOGETHER_API_KEY)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
 
-# Helper Functions
+# ============================
+# Asynchronous Helper Functions
+# ============================
+
 async def call_together_ai_async(messages, model=DEFAULT_MODEL_TOGETHER):
+    """Gọi Together AI để tạo search queries."""
     try:
         response = await asyncio.to_thread(
             together_client.chat.completions.create,
@@ -199,6 +60,9 @@ async def call_together_ai_async(messages, model=DEFAULT_MODEL_TOGETHER):
         return None
 
 async def call_openai_async(messages, max_comp_tokens, model=FINAL_REPORT_MODEL_OPENAI):
+    """
+    Gửi yêu cầu đến OpenAI, tùy max_comp_tokens <= 65536.
+    """
     try:
         response = await asyncio.to_thread(
             openai_client.chat.completions.create,
@@ -211,11 +75,19 @@ async def call_openai_async(messages, max_comp_tokens, model=FINAL_REPORT_MODEL_
         print("❌ OpenAI Error:", e)
         return None
 
+# =============== Chunk Summarization =============
+
 async def chunk_text(text, chunk_size=CHUNK_SIZE):
+    """
+    Chia text thành nhiều chunk < chunk_size.
+    """
     for i in range(0, len(text), chunk_size):
         yield text[i: i+chunk_size]
 
 async def summarize_chunk(session, chunk_text):
+    """
+    Tóm tắt 1 chunk, dùng OpenAI với SUMMARIZE_COMPLETION_TOKENS.
+    """
     prompt = (
         "You are an AI summarizer. Summarize the text below into a concise overview, "
         "preserving key details but significantly reducing length.\n\nText:\n"
@@ -227,7 +99,11 @@ async def summarize_chunk(session, chunk_text):
     summary = await call_openai_async(messages, max_comp_tokens=SUMMARIZE_COMPLETION_TOKENS)
     return summary if summary else ""
 
+# =============== Generate Search Queries =============
 async def generate_search_queries_async(session, user_query):
+    """
+    Dùng Together AI để tạo query (tối đa 4).
+    """
     prompt = (
         "You are an expert research assistant. Given the user's query, generate up to four distinct, "
         "precise search queries that would help gather comprehensive information on the topic. "
@@ -246,6 +122,7 @@ async def generate_search_queries_async(session, user_query):
             f"{user_query} use cases",
             f"{user_query} latest developments"
         ]
+    # clean <think>...
     resp_clean = re.sub(r"<think>.*?</think>", "", resp, flags=re.DOTALL).strip()
     try:
         if resp_clean.startswith("[") and resp_clean.endswith("]"):
@@ -254,6 +131,8 @@ async def generate_search_queries_async(session, user_query):
                 return sq
     except Exception as e:
         print("⚠️ Error parsing search queries:", e, "\nResponse:", resp_clean)
+
+    # fallback
     return [
         f"{user_query} overview",
         f"{user_query} in-depth analysis",
@@ -261,7 +140,9 @@ async def generate_search_queries_async(session, user_query):
         f"{user_query} latest developments"
     ]
 
+# =============== Perform Search ===============
 async def perform_search_async(session, query):
+    """Tavily search, lọc youtube & deepseek."""
     try:
         resp = await asyncio.to_thread(
             tavily_client.search,
@@ -279,7 +160,12 @@ async def perform_search_async(session, query):
         print("❌ Error performing Tavily search:", e)
         return []
 
+# =============== Extract Webpage Text ===============
 async def extract_webpage_text_async(url):
+    """
+    Trích xuất nội dung từ một trang web bằng Tavily.
+    In ra độ dài ban đầu (raw_length) trước khi cắt còn MAX_TOKENS_INPUT.
+    """
     try:
         response = await asyncio.to_thread(
             tavily_client.extract,
@@ -290,6 +176,8 @@ async def extract_webpage_text_async(url):
             raw_text = response["results"][0].get("raw_content", "")
             raw_length = len(raw_text)
             print(f"Raw length for {url}: {raw_length} chars (before cutting)")
+
+            # Cắt còn MAX_TOKENS_INPUT để tránh vượt context
             trimmed_text = raw_text[:MAX_TOKENS_INPUT]
             print(f"Trimmed length for {url}: {len(trimmed_text)} chars (after cutting)\n")
             return trimmed_text
@@ -301,15 +189,23 @@ async def extract_webpage_text_async(url):
         return ""
 
 async def process_link(session, link, user_query, search_query):
+    """Lấy text 1 link."""
     print(f"🔍 Fetching and extracting content from: {link}")
     text = await extract_webpage_text_async(link)
     return text if text else None
 
+# =============== Generate Final Report ===============
 async def generate_final_report_async(session, user_query, all_contexts):
+    """
+    Tạo báo cáo cuối cùng, chunk Summaries => final.
+    """
     if not all_contexts:
         return f"⚠️ Limited information found for: {user_query}."
+
+    # Gộp all context
     combined = "\n".join(all_contexts)
     if len(combined) <= CHUNK_SIZE:
+        # Gọi thẳng
         print("✅ Single chunk (no chunk summarization needed).")
         long_prompt = (
             "You are an AI research assistant. Based on the following contexts and the user query, "
@@ -322,13 +218,21 @@ async def generate_final_report_async(session, user_query, all_contexts):
         ]
         final_report = await call_openai_async(messages, max_comp_tokens=FINAL_COMPLETION_TOKENS)
         return final_report if final_report else "⚠️ No significant data."
+
+    # ...nếu text > chunk size => chunk summarization
     print("⚠️ Context too large, using chunk summarization...")
+
+    # Summaries
     summaries = []
     async for chunk in chunk_text(combined, CHUNK_SIZE):
         summary = await summarize_chunk(session, chunk)
         summaries.append(summary)
+
+    # Gom summaries
     summaries_combined = "\n\n".join(summaries)
     print(f"✅ Summaries combined length = {len(summaries_combined)} chars")
+
+    # Gọi final
     final_prompt = (
         "You are an AI research assistant. The text below are chunk summaries. "
         "Please combine them into a single cohesive, multi-sectional, long-form report. "
@@ -344,7 +248,12 @@ async def generate_final_report_async(session, user_query, all_contexts):
     final_report = await call_openai_async(messages, max_comp_tokens=FINAL_COMPLETION_TOKENS)
     return final_report if final_report else "⚠️ No final data."
 
+# =========================
+# Main Asynchronous Routine
+# =========================
+
 async def gradio_interface(user_query, iteration_limit=10):
+    """Hàm chạy async_main() và hiển thị kết quả trên giao diện Gradio."""
     aggregated_contexts = []
     all_search_queries = []
     iteration = 0
@@ -395,27 +304,50 @@ async def gradio_interface(user_query, iteration_limit=10):
         return final_report
 
 def run_gradio(user_query, iteration_limit=5):
+    """Hàm đồng bộ chạy async_main() để tích hợp vào Gradio."""
     return asyncio.run(gradio_interface(user_query, iteration_limit))
 
+#=============================================================================
+# Hàm tạo file Word
+#=============================================================================
+
+import pypandoc  # type: ignore
+from io import BytesIO
+
 def create_word_file(content, filename='report.docx'):
-    file_stream = io.BytesIO()
+    file_stream = BytesIO()
     output = pypandoc.convert_text(content, 'docx', format='md', outputfile=filename)
     with open(filename, "rb") as f:
         file_stream.write(f.read())
     file_stream.seek(0)
     return file_stream, filename
 
-def create_pdf_file(content, filename='report.pdf'):
-    options = {
-        'encoding': "UTF-8",
-        'quite': ''
-    }
-    file_stream = io.BytesIO()
-    pdfkit.from_string(content, file_stream, options=options)
-    file_stream.seek(0)
-    return file_stream, filename
+#============================================================================
+# Hàm tạo PDF
+#============================================================================
 
+import pdfkit  # type: ignore
+from io import BytesIO
+
+def create_pdf_file(content, filename='report.pdf'):
+  """ Tạo file từ nội dung báo cáo sử dụng pdfkit"""
+  options = {
+      'encoding': "UTF-8",
+      'quite': ''
+  }
+
+  file_stream = BytesIO()
+  pdfkit.from_string(content, file_stream, options=options)
+  file_stream.seek(0)
+  return file_stream, filename
+
+# ==============================================================================
+# Giao diện Gradio
+# ==============================================================================
+
+# Hàm tải file
 def download_report(content, file_type):
+    """Tạo file tùy theo loại (Word hoặc PDF) và trả về để tải xuống."""
     if file_type == "doc":
         return create_word_file(content)
     elif file_type == "pdf":
@@ -423,7 +355,13 @@ def download_report(content, file_type):
     else:
         raise ValueError("Loại file không hợp lệ. Chọn 'doc' hoặc 'pdf'.")
 
+def run_gradio(user_query, iteration_limit=5):
+    """Hàm đồng bộ chạy async_main() để tích hợp vào Gradio."""
+    final_report = asyncio.run(gradio_interface(user_query, iteration_limit))
+    return final_report
+
 def main():
+    """Hàm chính để khởi chạy giao diện Gradio."""
     with gr.Blocks() as demo:
         gr.Markdown("# 🔍 Open Deep Researcher - AI Research Assistant")
 
@@ -440,22 +378,20 @@ def main():
             download_doc_btn = gr.Button("📥 Tải về file Word")
             download_pdf_btn = gr.Button("📥 Tải về file PDF")
 
+        # Kết nối nút tải xuống với hàm xử lý
         download_doc_btn.click(
             fn=download_report,
-            inputs=[output_text, gr.State("doc")],
-            outputs=gr.File(label="Tải về file Word"),
+            inputs=[output_text, gr.State("doc")],  # Truyền nội dung và loại file
+            outputs=gr.File(label="Tải về file Word"),  # Đầu ra là file để tải xuống
         )
         download_pdf_btn.click(
             fn=download_report,
-            inputs=[output_text, gr.State("pdf")],
-            outputs=gr.File(label="Tải về file PDF"),
+            inputs=[output_text, gr.State("pdf")],  # Truyền nội dung và loại file
+            outputs=gr.File(label="Tải về file PDF"),  # Đầu ra là file để tải xuống
         )
 
-    demo.queue()
+    demo.queue() # Bật Queue để xử lý nhiều yêu cầu đồng thời
     demo.launch(share=True)
 
-from AutoReportX import run_gradio
-
-if __name__ == "__main__": 
-    # Chạy Server
-    uvicorn.run(app, host="0.0.0.0", port=5000)
+if __name__ == "__main__":
+    main()

@@ -16,13 +16,13 @@
               <div class="dropdown">
                 <button class="btn btn-secondary dropdown-toggle avatar-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                   <div class="avatar-container">
-                    <img :src="user.avatar || defaultAvatar" class="rounded-circle avatar-img" alt="User Avatar">
+                    <img :src="user?.avatar || defaultAvatar" class="rounded-circle avatar-img" alt="User Avatar">
                   </div>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                   <li class="dropdown-header text-center">
                     <div class="avatar-container" style="width: 155px; height: 155px;">
-                      <img :src="user.avatar || defaultAvatar" class="rounded-circle avatar-img-lg" alt="User Avatar">
+                      <img :src="user?.avatar || defaultAvatar" class="rounded-circle avatar-img" alt="User Avatar">
                     </div>
                     <p class="fw-bold">{{ user.name }}</p>
                   </li>
@@ -41,9 +41,25 @@
           <h4 style="font-size: 1.2em; text-align: center;">AutoReportX History</h4>
         </div>
 
-       <div class="auth-form">
+        <div class="home-page">
+          <h1>Open Deep Researcher - AI Research Assistant</h1>
+          <input v-model="userQuery" placeholder="Nhập câu hỏi của bạn..." />
+          <button @click="runGradio" :disabled="loading">
+            {{ loading ? 'Đang tải...' : 'Bắt đầu tìm kiếm' }}
+          </button>
+          <div v-if="result">
+            <h2>Kết quả:</h2>
+            <pre>{{ result }}</pre>
+            <!-- Nút tải về file -->
+            <button @click="downloadReport('doc')" :disabled="!result">Tải về Word</button>
+            <button @click="downloadReport('pdf')" :disabled="!result">Tải về PDF</button>
+          </div>
+        </div>
+
+
+       <!-- <div class="auth-form"> -->
          <!-- Lưu trữ lịch sử tào báo cáo và nội dung báo cáo -->
-         <div class="accordion" id="accordionPanelsStayOpenExample">
+         <!-- <div class="accordion" id="accordionPanelsStayOpenExample">
           <div class="accordion-item">
             <h2 class="accordion-header">
               <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#panelsStayOpen-collapseOne" aria-expanded="true" aria-controls="panelsStayOpen-collapseOne">
@@ -81,7 +97,7 @@
             </div>
           </div>
         </div>
-       </div>
+       </div> -->
           
         <div class="contact-info">
           <p>{{ currentTranslations.contactTitle }}</p><br>
@@ -114,26 +130,147 @@
   import { ref, computed, onMounted } from 'vue';
   import { inject } from "vue";
   import { useRouter } from 'vue-router';
+  // import axios from 'axios';
 
-  const router = useRouter() ;
-  const user = ref({});
+  // console.log(import.meta.env); //Kiểm tra Vue có đọc được biến API hay không
 
-  onMounted(() => {
-  // const userData = localStorage.getItem("user");
-  // if (userData) {
-  //   user.value = JSON.parse(userData);
-  // } else {
-  //   router.push("/login"); // Nếu chưa đăng nhập thì chuyển về trang login
-  // }
-});
+  // const togetherApiKey = process.env.VITE_TOGETHER_API_KEY || "Chưa có API";
+  // const tavilyApiKey = process.env.VITE_TAVILY_API_KEY || "Chưa có API";
+  // const openaiApiKey = process.env.VITE_OPENAI_API_KEY || "Chưa có API";
 
-const logout = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
-  router.push("/");
+  // console.log("Together API:", togetherApiKey);
+  // console.log("Tavily API:", tavilyApiKey);
+  // console.log("OpenAI API:", openaiApiKey);
+
+  // axios.get("/your-endpoint", {
+  //   headers: {
+  //     "Authorization": `Bearer ${togetherApiKey}`,
+  //     "Tavily-Key": tavilyApiKey,
+  //     "OpenAI-Key": openaiApiKey
+  //   }
+  // }).then(response => {
+  //   console.log("API Response:", response.data);
+  // }).catch(error => {
+  //   console.error("API Error:", error);
+  // });
+
+  //=======================================================
+
+  // Reactive state
+const userQuery = ref('');
+const result = ref('');
+const loading = ref(false);
+
+// URL của Gradio
+const gradioUrl = "http://192.168.0.136:7860"; // Thay bằng URL của bạn
+
+// Hàm gọi API Gradio
+const runGradio = async () => {
+  if (!userQuery.value.trim()) {
+    alert('Vui lòng nhập câu hỏi!');
+    return;
+  }
+
+  loading.value = true;
+  result.value = '';
+
+  try {
+    const response = await fetch(`${gradioUrl}/predict/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: [userQuery.value, 5], // user_query và iteration_limit
+      }),
+    });
+
+    const data = await response.json();
+    result.value = data.data;
+  } catch (error) {
+    console.error('Lỗi khi gọi API:', error);
+    result.value = 'Đã xảy ra lỗi khi tải kết quả.';
+  } finally {
+    loading.value = false;
+  }
 };
 
+// Hàm tải về file
+const downloadReport = async (type) => {
+  if (!result.value) {
+    alert('Không có kết quả để tải về.');
+    return;
+  }
 
+  try {
+    const response = await fetch(`${gradioUrl}/download/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: [result.value, type], // Truyền kết quả và loại file
+      }),
+    });
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report.${type}`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Lỗi khi tải về file:', error);
+    alert('Đã xảy ra lỗi khi tải về file.');
+  }
+};
+  //=======================================================
+
+
+  const user = ref({
+    avatar: "",  // Ảnh mặc định (nếu chưa có dữ liệu)
+    name: "Người dùng"
+  });
+
+  const defaultAvatar = "../assets/default_avatar.png";
+
+  const router = useRouter() ;
+
+  // const generateReport = async () => {
+  // try {
+  //   const response = await axios.post("/api/auth/generate_report", {
+  //     user_query: userQuery.value,  // Gửi nội dung nhập vào backend
+  //     iteration_limit: 5,  // Số vòng lặp
+  //   });
+
+  //   report.value = response.data.report;  // Hiển thị kết quả lên UI
+  // } catch (error) {
+  //   console.error("Lỗi khi tạo báo cáo:", error);
+  //   }
+  // };
+
+  // Gọi API lấy thông tin user
+  const fetchUser = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/user");
+      const data = await response.json();
+      if (data) {
+        user.value = data; // Gán dữ liệu từ API vào user
+      }
+    } catch (error) {
+      console.error("Lỗi khi lấy dữ liệu người dùng:", error);
+    }
+  };
+
+  // Gọi API khi component được mount
+  onMounted(fetchUser);
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    router.push("/");
+  };
 
   const language = ref(inject("language"));
   const toggleLanguage = inject("toggleLanguage");
@@ -148,7 +285,8 @@ const logout = () => {
       contactAddress: "📍 Địa chỉ: Trường Công nghệ Thông tin & Truyền thông, Đại học Cần Thơ",
       accountInfo: "Thông tin tài khoản",
       upgradePlan: "Nâng cấp gói",
-      logout: "Đăng xuất"
+      logout: "Đăng xuất",
+      user: "Người dùng"
     },
     en: {
       contactTitle: "For further details, please contact:",
@@ -157,12 +295,44 @@ const logout = () => {
       contactAddress: "📍 Address: College of Information and Communication Technology, Can Tho University",
       accountInfo: "Account Information",
       upgradePlan: "Upgrade Plan",
-      logout: "Logout"
+      logout: "Logout",
+      user: "User"
     }
   };
+  
   </script>
   
   <style scoped>
+
+.home-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: center;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+  margin: 5px;
+  cursor: pointer;
+}
+
+pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background: #f4f4f4;
+  padding: 10px;
+  border-radius: 5px;
+  text-align: left;
+}
 
 .auth-form {
       background-color: rgba(255, 255, 255, 0.8); /* Nền trắng trong suốt */
@@ -306,13 +476,7 @@ const logout = () => {
       margin-bottom: 5px;
       font-weight: bold;
   }
-  
-  input {
-      width: 100%;
-      padding: 10px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-  }
+ 
   
   .btn-login {
       width: 100%;
