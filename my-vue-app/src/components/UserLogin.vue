@@ -26,11 +26,12 @@
             <div class="form-group">
               <label for="username" id="usernameLabel">{{translations[language].usernameLabel}}</label>
               <input type="text" v-model="username" id="usernamePlaceholder" :placeholder="translations[language].usernamePlaceholder" />
+              <p v-if="errors.username" class="error-message">{{ errors.username }}</p>
             </div>
             <div class="form-group">
               <label for="password" id="passwordLabel">{{translations[language].passwordLabel}}</label>
               <input type="password" v-model="password" id="passwordPlaceholder" :placeholder= "translations[language].passwordPlaceholder" />
-              <a href="#" id="forgotPassword">{{translations[language].forgotPassword}}</a>
+              <p v-if="errors.password" class="error-message">{{ errors.password }}</p>
             </div>
             <button class="btn-login" id="loginButton"> {{translations[language].loginButton}}</button> 
 
@@ -81,13 +82,14 @@
   
   <script setup>
   import { useRouter } from 'vue-router';
-  import {ref, computed } from 'vue';
+  import {ref, computed, reactive } from 'vue';
   import { inject } from "vue";
   import axios from "axios";
 
   // Biến lưu tên đăng nhập và mật khẩu
   const username = ref("");
   const password = ref("");
+  const errors = reactive({});
 
   // Sử dụng Vue Router để điều hướng
   const router = useRouter();
@@ -111,7 +113,6 @@
       usernamePlaceholder: "Nhập tên đăng nhập",
       passwordLabel: "Mật khẩu:",
       passwordPlaceholder: "Nhập mật khẩu",
-      forgotPassword: "Quên mật khẩu?",
       loginButton: "Đăng Nhập",
       orLoginWith: "Hoặc đăng nhập bằng:",
       noAccount: "Bạn chưa có tài khoản?",
@@ -132,7 +133,6 @@
       usernamePlaceholder: "Enter your username",
       passwordLabel: "Password:",
       passwordPlaceholder: "Enter your password",
-      forgotPassword: "Forgot password?",
       loginButton: "Login",
       orLoginWith: "Or log in with:",
       noAccount: "Don't have an account?",
@@ -150,8 +150,19 @@
 
   // Xử lý đăng nhập
   const handleLogin = async () => {
+
+    // Kiểm tra đầu vào trước khi gửi request
+    errors.username = username.value ? "" : "Tên đăng nhập không được để trống.";
+    errors.password = password.value ? "" : "Mật khẩu không được để trống.";
+
+    // Nếu có lỗi, dừng lại luôn
+    if (!username.value || !password.value) {
+      alert("⚠️ Vui lòng nhập đầy đủ thông tin!");
+      return;
+    }
+
   try {
-    console.log("🔹 Bắt đầu gửi request đăng nhập...");
+    console.log("Bắt đầu gửi request đăng nhập...");
 
     console.log(username.value, password.value)
     

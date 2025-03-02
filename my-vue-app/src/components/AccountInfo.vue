@@ -3,12 +3,44 @@
       <div class="content">
         <div class="container-fluid">
           <div class="header-container" style="text-align: center;">
-            <h1 style="font-size: 2em;">AutoReportX</h1> 
+            <h1 style="font-size: 7em;">AutoReportX</h1> 
           </div>   
   
           <br><br>
+
+          <div class="auth-form">
+            <h2>{{ translations[language].profileTitle }}</h2>
+            <form @submit.prevent="updateProfile">
+              <div class="avatar-upload">
+                <img :src="avatarPreview || user.avatar" class="avatar" />
+                <input type="file" @change="handleAvatarUpload" accept="image/*" />
+              </div>
+
+              <div class="form-group">
+                <label for="fullname">{{ translations[language].fullnameLabel }}</label>
+                <input type="text" v-model="user.fullname" id="fullname" />
+              </div>
+
+              <div class="form-group">
+                <label for="email">{{ translations[language].emailLabel }}</label>
+                <input type="email" v-model="user.email" id="email" />
+              </div>
+
+              <div class="form-group">
+                <label for="username">{{ translations[language].usernameLabel }}</label>
+                <input type="text" v-model="user.username" id="username" disabled />
+              </div>
+
+              <div class="form-group">
+                <label for="password">{{ translations[language].passwordLabel }}</label>
+                <input type="password" v-model="user.password" id="password" placeholder="Nhập mật khẩu mới (nếu cần)" />
+              </div>
+
+              <button class="btn-update">{{ translations[language].updateButton }}</button>
+            </form>
+          </div>
   
-          <!-- Nội dung sẽ được thay đổi theo ngôn ngữ -->
+          <!-- Nội dung sẽ được thay đổi theo ngôn ngữ
           <div id="content">
             <div>
               <h2>{{ currentTranslations.title }}</h2><br><br>
@@ -19,11 +51,12 @@
               <h4>{{ currentTranslations.conclusion }}</h4><br><br>
               
             </div>  
+
             <div class="header-logo">
                     <img src="../assets/logo.png" alt="AutoReportX Logo">
                 </div>
           </div>
-        </div>
+        </div> -->
 
         <div class="tagline-box text-center">
           {{ currentTranslations.tagline }}
@@ -54,44 +87,113 @@
         </div>
       </footer>
     </div>
-  </template>
+  </div>
+</template>
   
   <script setup>
 //   import { RouterLink } from 'vue-router';
-  import {ref, computed } from 'vue';
+  import {ref, computed, reactive, onMounted } from 'vue';
   import { inject } from "vue";
-  
-    // Declare reactive variables
+  import axios from "axios";
 
   const language = ref(inject("language"));
-//   const toggleLanguage = inject("toggleLanguage");
-  // Declare the translations object
+
+  // 🔹 Khởi tạo biến lưu thông tin user
+const user = reactive({
+  fullname: "",
+  email: "",
+  username: "",
+  password: "",
+  avatar: "../assets/default_avatar.png"
+});
+
+const response = await axios.get("/api/user/info");
+const userData = response.data; // Lấy dữ liệu từ response
+
+// Gán dữ liệu vào biến dùng trong Vue
+username.value = userData.username;
+email.value = userData.email;
+avatarUrl.value = userData.avatar;
+
+
+const avatarPreview = ref(null);
+
+// 🔹 Gọi API để lấy thông tin user từ backend
+const fetchUserProfile = async () => {
+  try {
+    const token = localStorage.getItem("token"); // Lấy token từ localStorage
+    const response = await axios.get("/api/user/profile", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    // 🔹 Cập nhật thông tin user từ API
+    Object.assign(user, response.data.user);
+
+    console.log("✅ Lấy thông tin user thành công:", response.data.user);
+  } catch (error) {
+    console.error("❌ Lỗi khi lấy thông tin user:", error);
+    alert("⚠️ Không thể lấy thông tin tài khoản!");
+  }
+};
+
+onMounted(fetchUserProfile);
+
+// 🔹 Xử lý upload avatar
+const handleAvatarUpload = (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    avatarPreview.value = URL.createObjectURL(file);
+    user.avatar = file; // Lưu file để gửi lên server
+  }
+};
+
+// 🔹 Xử lý cập nhật thông tin tài khoản
+const updateProfile = async () => {
+  try {
+    const formData = new FormData();
+    formData.append("fullname", user.fullname);
+    formData.append("email", user.email);
+    if (user.password) formData.append("password", user.password);
+    if (user.avatar instanceof File) {
+      formData.append("avatar", user.avatar);
+    }
+
+    const token = localStorage.getItem("token");
+
+    const response = await axios.put("/api/user/profile", formData, {
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" }
+    });
+
+    alert("🎉 Cập nhật thành công!");
+    
+    // 🔹 Cập nhật lại giao diện
+    fetchUserProfile();
+  } catch (error) {
+    console.error("❌ Lỗi cập nhật:", error);
+    alert("⚠️ Cập nhật thất bại!");
+  }
+};
+
   const translations = {
     vi: {
-      login: "Đăng Nhập",
-      register: "Đăng Ký",
-      title: "Trong thời đại bùng nổ thông tin, việc tìm kiếm, trích xuất và đánh giá nội dung một cách chính xác là yếu tố then chốt giúp doanh nghiệp và cá nhân đưa ra quyết định đúng đắn. AutoReportX ra đời như một giải pháp tiên phong, ứng dụng công nghệ hiện đại để xử lý dữ liệu một cách thông minh, nhanh chóng và hiệu quả.",
-      search: "🔎 Tìm kiếm tối ưu: Hệ thống tích hợp thuật toán tiên tiến, giúp truy xuất thông tin với tốc độ vượt trội và độ chính xác cao.",
-      extraction: "📑 Trích xuất thông minh: Xác định và tổng hợp nội dung quan trọng từ nhiều nguồn, hỗ trợ phân tích chuyên sâu.",
-      assessment: "📊 Đánh giá thông tin: Ứng dụng AI để phân tích tính xác thực, mức độ tin cậy của dữ liệu.",
-      reporting: "📝 Tạo báo cáo tự động: Biến dữ liệu thô thành báo cáo trực quan, hỗ trợ ra quyết định một cách nhanh chóng.",
-      conclusion: "Với giao diện thân thiện, hiệu năng mạnh mẽ và khả năng xử lý dữ liệu vượt trội, AutoReportX không chỉ giúp tối ưu hóa quy trình làm việc mà còn nâng tầm khả năng khai thác tri thức, tạo ra giá trị thực tiễn cho người dùng.",
-      tagline: "Hãy để công nghệ dẫn lối tri thức – Trải nghiệm sự khác biệt cùng AutoReportX!",
+      profileTitle: "Thông Tin Tài Khoản",
+      fullnameLabel: "Họ và Tên",
+      emailLabel: "Email",
+      usernameLabel: "Tên Đăng Nhập",
+      passwordLabel: "Mật Khẩu",
+      updateButton: "Cập Nhật",
       contactTitle: "Mọi chi tiết xin vui lòng liên hệ:",
       contactEmail: "📧 Email: yb2207580@student.ctu.edu.vn",
       contactPhone: "📞 Hotline: 0848-077-996 Hoặc 0559-285-596",
       contactAddress: "📍 Địa chỉ: Trường Công nghệ Thông tin & Truyền thông"
     },
     en: {
-      login: "Login",
-      register: "Sign Up",
-      title: "In the era of information explosion, accurate search, extraction, and evaluation of content are key factors that enable businesses and individuals to make well-informed decisions. AutoReportX emerges as a pioneering solution, leveraging cutting-edge technology to process data intelligently, efficiently, and rapidly.",
-      search: "🔎 Optimized Search: The system integrates advanced algorithms to retrieve information with exceptional speed and accuracy.",
-      extraction: "📑 Smart Extraction: Identifies and synthesizes key content from multiple sources, supporting in-depth analysis.",
-      assessment: "📊 Information Assessment: Utilizes AI to analyze authenticity and assess the reliability of data.",
-      reporting: "📝 Automated Reporting: Transforms raw data into intuitive reports, facilitating quick and informed decision-making.",
-      conclusion: "With a user-friendly interface, powerful performance, and superior data processing capabilities, AutoReportX not only optimizes workflows but also enhances knowledge extraction, creating real-world value for users.",
-      tagline: "Let technology pave the way to knowledge – Experience the difference with AutoReportX!",
+      profileTitle: "Account Information",
+      fullnameLabel: "Full name",
+      emailLabel: "Email",
+      usernameLabel: "Username",
+      passwordLabel: "Password",
+      updateButton: "Update",
       contactTitle: "For further details, please contact:",
       contactEmail: "📧 Email: yb2207580@student.ctu.edu.vn",
       contactPhone: "📞 Hotline: 0848-077-996 or 0559-285-596",
@@ -99,12 +201,9 @@
     }
   };
   
-
-  
-  // Computed property to get the current translations based on the selected language
   const currentTranslations = computed(() => translations[language.value]);
   
-  // Methods for handling language change
+
 
   </script>
   
@@ -330,6 +429,56 @@
   box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
 }
 
+.auth-form {
+      background-color: rgba(255, 255, 255, 0.8); /* Nền trắng trong suốt */
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px auto;
+      width: 700px; /* Chiều rộng khung đăng nhập */
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  }
+  
+  .form-group {
+      margin-bottom: 15px;
+  }
+
+  .avatar-upload {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+input[type="file"] {
+  display: block;
+  margin: 10px auto;
+}
+
+input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+}
+
+.btn-update {
+  width: 100%;
+  padding: 10px;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.btn-update:hover {
+  background: #0056b3;
+}
 
 </style>
   

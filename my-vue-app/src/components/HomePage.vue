@@ -27,7 +27,7 @@
                     <p class="fw-bold">{{ user.name }}</p>
                   </li>
                   <li><hr class="dropdown-divider"></li>
-                  <li><a class="dropdown-item" href="./AccountInfo.vue">{{ translations[language].accountInfo }}</a></li>
+                  <li><a class="dropdown-item" href="#" @click="goToAccountInfo" >{{ translations[language].accountInfo }}</a></li>
                   <li><a class="dropdown-item" href="#">{{ translations[language].upgradePlan }}</a></li>
                   <li><hr class="dropdown-divider"></li>
                   <li><a class="dropdown-item text-danger" href="#" @click="logout">{{ translations[language].logout }}</a></li>
@@ -35,10 +35,6 @@
               </div>
             </div>
           </div>
-        </div>
-
-        <div class="auth-form-p">
-          <h4 style="font-size: 1.2em; text-align: center;">AutoReportX History</h4>
         </div>
 
         <div class="home-page">
@@ -56,48 +52,6 @@
           </div>
         </div>
 
-
-       <!-- <div class="auth-form"> -->
-         <!-- Lưu trữ lịch sử tào báo cáo và nội dung báo cáo -->
-         <!-- <div class="accordion" id="accordionPanelsStayOpenExample">
-          <div class="accordion-item">
-            <h2 class="accordion-header">
-              <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#panelsStayOpen-collapseOne" aria-expanded="true" aria-controls="panelsStayOpen-collapseOne">
-                Accordion Item #1
-              </button>
-            </h2>
-            <div id="panelsStayOpen-collapseOne" class="accordion-collapse collapse show">
-              <div class="accordion-body">
-                <strong>This is the first item's accordion body.</strong> It is shown by default, until the collapse plugin adds the appropriate classes that we use to style each element. These classes control the overall appearance, as well as the showing and hiding via CSS transitions. You can modify any of this with custom CSS or overriding our default variables. It's also worth noting that just about any HTML can go within the <code>.accordion-body</code>, though the transition does limit overflow.
-              </div>
-            </div>
-          </div>
-          <div class="accordion-item">
-            <h2 class="accordion-header">
-              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#panelsStayOpen-collapseTwo" aria-expanded="false" aria-controls="panelsStayOpen-collapseTwo">
-                Accordion Item #2
-              </button>
-            </h2>
-            <div id="panelsStayOpen-collapseTwo" class="accordion-collapse collapse">
-              <div class="accordion-body">
-                <strong>This is the second item's accordion body.</strong> It is hidden by default, until the collapse plugin adds the appropriate classes that we use to style each element. These classes control the overall appearance, as well as the showing and hiding via CSS transitions. You can modify any of this with custom CSS or overriding our default variables. It's also worth noting that just about any HTML can go within the <code>.accordion-body</code>, though the transition does limit overflow.
-              </div>
-            </div>
-          </div>
-          <div class="accordion-item">
-            <h2 class="accordion-header">
-              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#panelsStayOpen-collapseThree" aria-expanded="false" aria-controls="panelsStayOpen-collapseThree">
-                Accordion Item #3
-              </button>
-            </h2>
-            <div id="panelsStayOpen-collapseThree" class="accordion-collapse collapse">
-              <div class="accordion-body">
-                <strong>This is the third item's accordion body.</strong> It is hidden by default, until the collapse plugin adds the appropriate classes that we use to style each element. These classes control the overall appearance, as well as the showing and hiding via CSS transitions. You can modify any of this with custom CSS or overriding our default variables. It's also worth noting that just about any HTML can go within the <code>.accordion-body</code>, though the transition does limit overflow.
-              </div>
-            </div>
-          </div>
-        </div>
-       </div> -->
           
         <div class="contact-info">
           <p>{{ currentTranslations.contactTitle }}</p><br>
@@ -130,42 +84,13 @@
   import { ref, computed, onMounted } from 'vue';
   import { inject } from "vue";
   import { useRouter } from 'vue-router';
-  // import axios from 'axios';
 
-  // console.log(import.meta.env); //Kiểm tra Vue có đọc được biến API hay không
-
-  // const togetherApiKey = process.env.VITE_TOGETHER_API_KEY || "Chưa có API";
-  // const tavilyApiKey = process.env.VITE_TAVILY_API_KEY || "Chưa có API";
-  // const openaiApiKey = process.env.VITE_OPENAI_API_KEY || "Chưa có API";
-
-  // console.log("Together API:", togetherApiKey);
-  // console.log("Tavily API:", tavilyApiKey);
-  // console.log("OpenAI API:", openaiApiKey);
-
-  // axios.get("/your-endpoint", {
-  //   headers: {
-  //     "Authorization": `Bearer ${togetherApiKey}`,
-  //     "Tavily-Key": tavilyApiKey,
-  //     "OpenAI-Key": openaiApiKey
-  //   }
-  // }).then(response => {
-  //   console.log("API Response:", response.data);
-  // }).catch(error => {
-  //   console.error("API Error:", error);
-  // });
-
-  //=======================================================
-
-  // Reactive state
+  //   // Reactive state
 const userQuery = ref('');
 const result = ref('');
 const loading = ref(false);
 
-// URL của Gradio
-const gradioUrl = "http://192.168.0.136:7860"; // Thay bằng URL của bạn
-
-// Hàm gọi API Gradio
-const runGradio = async () => {
+  const runGradio = async () => {
   if (!userQuery.value.trim()) {
     alert('Vui lòng nhập câu hỏi!');
     return;
@@ -175,15 +100,20 @@ const runGradio = async () => {
   result.value = '';
 
   try {
-    const response = await fetch(`${gradioUrl}/predict/`, {
+    const response = await fetch('/api/predict/', {  // Sử dụng proxy /api
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        data: [userQuery.value, 5], // user_query và iteration_limit
+        user_query: userQuery.value, // user_query
+        iteration_limit: 5,         // iteration_limit
       }),
     });
+
+    if (!response.ok) {
+      throw new Error(`Lỗi HTTP: ${response.status}`);
+    }
 
     const data = await response.json();
     result.value = data.data;
@@ -195,38 +125,6 @@ const runGradio = async () => {
   }
 };
 
-// Hàm tải về file
-const downloadReport = async (type) => {
-  if (!result.value) {
-    alert('Không có kết quả để tải về.');
-    return;
-  }
-
-  try {
-    const response = await fetch(`${gradioUrl}/download/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        data: [result.value, type], // Truyền kết quả và loại file
-      }),
-    });
-
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `report.${type}`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error('Lỗi khi tải về file:', error);
-    alert('Đã xảy ra lỗi khi tải về file.');
-  }
-};
-  //=======================================================
-
 
   const user = ref({
     avatar: "",  // Ảnh mặc định (nếu chưa có dữ liệu)
@@ -237,18 +135,6 @@ const downloadReport = async (type) => {
 
   const router = useRouter() ;
 
-  // const generateReport = async () => {
-  // try {
-  //   const response = await axios.post("/api/auth/generate_report", {
-  //     user_query: userQuery.value,  // Gửi nội dung nhập vào backend
-  //     iteration_limit: 5,  // Số vòng lặp
-  //   });
-
-  //   report.value = response.data.report;  // Hiển thị kết quả lên UI
-  // } catch (error) {
-  //   console.error("Lỗi khi tạo báo cáo:", error);
-  //   }
-  // };
 
   // Gọi API lấy thông tin user
   const fetchUser = async () => {
@@ -298,6 +184,10 @@ const downloadReport = async (type) => {
       logout: "Logout",
       user: "User"
     }
+  };
+
+  const goToAccountInfo = () => {
+    router.push("/accountinfo");
   };
   
   </script>

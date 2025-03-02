@@ -1,20 +1,17 @@
-from fastapi import FastAPI, HTTPException
 import jwt
-from pymongo import MongoClient
-from pydantic import BaseModel
-from dotenv import load_dotenv
 import os
 import bcrypt
 import uvicorn
 from datetime import datetime, timedelta
 from fastapi.middleware.cors import CORSMiddleware
-from flask import Flask, jsonify, request
-from flask_cors import CORS
-# import subprocess
-
+from flask import Flask, jsonify, request # type: ignore
+from flask_cors import CORS # type: ignore
 from pydantic import BaseModel
-from AutoReportX import run_gradio #Import hàn từ AutoReportX
-import asyncio
+from AutoReportX import run_gradio #Import hànm từ AutoReportX
+from fastapi import FastAPI, HTTPException
+from pymongo import MongoClient
+from pydantic import BaseModel
+from dotenv import load_dotenv
 
 # Load biến môi trường
 load_dotenv()
@@ -124,337 +121,70 @@ async def login(user: UserLogin):
     token = create_token({"username": db_user["username"], "email": db_user["email"]})
     return {"token": token, "username": db_user["username"], "fullname": db_user["fullname"]}
 
-# class ReportRequest(BaseModel):
-#     user_query: str  # Thay vì user_id, ta nhập nội dung tìm kiếm
-#     iteration_limit: int = 5  # Số vòng lặp tối đa
 
+# Lấy thông tin tài khoản
+@app.route("/api/user/profile", methods=["GET"])
+def get_profile():
+    token = request.headers.get("Authorization")
+    if not token or token != "Bearer your-token-here":
+        return jsonify({"error": "Unauthorized"}), 401
 
-# @app.post("/auth/generate_report")
-# async def generate_report(request: ReportRequest):
-#     # Gọi hàm của AutoReportX để tạo báo cáo
-#     report_content = run_gradio(request.user_query, request.iteration_limit)
+    user_id = "mock_user_id"  # Xác định user từ token trong thực tế
 
-#     # Trả về nội dung báo cáo cho frontend
-#     return {"status": "success", "report": report_content}
-
-# Giả lập dữ liệu người dùng
-user_data = {
-    "avatar": "../my-vue-app/src/assets/Avatar.jpg",  # Ảnh đại diện giả lập
-    "name": "Đoàn Thị Như Ý"
-}
-
-@app.route("/user", methods=["GET"])
-def get_user():
-    return jsonify(user_data), 200
-
-#===========================================================================================
-import asyncio
-import aiohttp
-import gradio as gr
-import io
-import os
-import re
-from tavily import TavilyClient
-from together import Together
-from openai import OpenAI
-import nest_asyncio
-import pypandoc
-import pdfkit
-from dotenv import load_dotenv
-
-nest_asyncio.apply()
-load_dotenv()
-
-# Configuration Constants
-TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
-TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
-OPENAI_API_KEY = os.getenv("MY_OPENAI_API_KEY")
-
-DEFAULT_MODEL_TOGETHER = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B"
-FINAL_REPORT_MODEL_OPENAI = "o1-mini"
-
-MAX_LINKS_PER_ITERATION = 30
-MAX_TOKENS_INPUT = 40000
-CHUNK_SIZE = 24000
-SUMMARIZE_COMPLETION_TOKENS = 2000
-FINAL_COMPLETION_TOKENS = 64000
-
-together_client = Together(api_key=TOGETHER_API_KEY)
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
-tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
-
-# Helper Functions
-async def call_together_ai_async(messages, model=DEFAULT_MODEL_TOGETHER):
-    try:
-        response = await asyncio.to_thread(
-            together_client.chat.completions.create,
-            messages=messages,
-            model=model,
-            temperature=0.7,
-            max_tokens=500
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        print("❌ Together AI Error:", e)
-        return None
-
-async def call_openai_async(messages, max_comp_tokens, model=FINAL_REPORT_MODEL_OPENAI):
-    try:
-        response = await asyncio.to_thread(
-            openai_client.chat.completions.create,
-            model=model,
-            messages=messages,
-            max_completion_tokens=max_comp_tokens
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        print("❌ OpenAI Error:", e)
-        return None
-
-async def chunk_text(text, chunk_size=CHUNK_SIZE):
-    for i in range(0, len(text), chunk_size):
-        yield text[i: i+chunk_size]
-
-async def summarize_chunk(session, chunk_text):
-    prompt = (
-        "You are an AI summarizer. Summarize the text below into a concise overview, "
-        "preserving key details but significantly reducing length.\n\nText:\n"
-    )
-    messages = [
-        {"role": "assistant", "content": "You are a summarizer tool."},
-        {"role": "user", "content": prompt + chunk_text}
-    ]
-    summary = await call_openai_async(messages, max_comp_tokens=SUMMARIZE_COMPLETION_TOKENS)
-    return summary if summary else ""
-
-async def generate_search_queries_async(session, user_query):
-    prompt = (
-        "You are an expert research assistant. Given the user's query, generate up to four distinct, "
-        "precise search queries that would help gather comprehensive information on the topic. "
-        "Return only a Python list of strings, for example: ['query1', 'query2', 'query3']."
-    )
-    messages = [
-        {"role": "system", "content": "You are a helpful and precise research assistant."},
-        {"role": "user", "content": f"User Query: {user_query}\n\n{prompt}"}
-    ]
-    resp = await call_together_ai_async(messages)
-    if not resp:
-        print("⚠️ No response from Together AI, fallback queries.")
-        return [
-            f"{user_query} overview",
-            f"{user_query} in-depth analysis",
-            f"{user_query} use cases",
-            f"{user_query} latest developments"
-        ]
-    resp_clean = re.sub(r"<think>.*?</think>", "", resp, flags=re.DOTALL).strip()
-    try:
-        if resp_clean.startswith("[") and resp_clean.endswith("]"):
-            sq = eval(resp_clean)
-            if isinstance(sq, list) and all(isinstance(q, str) for q in sq):
-                return sq
-    except Exception as e:
-        print("⚠️ Error parsing search queries:", e, "\nResponse:", resp_clean)
-    return [
-        f"{user_query} overview",
-        f"{user_query} in-depth analysis",
-        f"{user_query} use cases",
-        f"{user_query} latest developments"
-    ]
-
-async def perform_search_async(session, query):
-    try:
-        resp = await asyncio.to_thread(
-            tavily_client.search,
-            query=query,
-            max_results=10,
-            include_raw_content=True,
-            search_depth="advanced"
-        )
-        if not resp:
-            return []
-        links = [x.get("url") for x in resp.get("results", []) if "url" in x]
-        valid_links = [u for u in links if "youtube.com" not in u.lower() and "deepseek.com" not in u.lower()]
-        return valid_links
-    except Exception as e:
-        print("❌ Error performing Tavily search:", e)
-        return []
-
-async def extract_webpage_text_async(url):
-    try:
-        response = await asyncio.to_thread(
-            tavily_client.extract,
-            urls=[url],
-            include_images=False
-        )
-        if "results" in response and response["results"]:
-            raw_text = response["results"][0].get("raw_content", "")
-            raw_length = len(raw_text)
-            print(f"Raw length for {url}: {raw_length} chars (before cutting)")
-            trimmed_text = raw_text[:MAX_TOKENS_INPUT]
-            print(f"Trimmed length for {url}: {len(trimmed_text)} chars (after cutting)\n")
-            return trimmed_text
-        else:
-            print(f"⚠️ No extraction result for URL: {url}")
-            return ""
-    except Exception as e:
-        print(f"❌ Error extracting webpage text with Tavily for {url}: {e}")
-        return ""
-
-async def process_link(session, link, user_query, search_query):
-    print(f"🔍 Fetching and extracting content from: {link}")
-    text = await extract_webpage_text_async(link)
-    return text if text else None
-
-async def generate_final_report_async(session, user_query, all_contexts):
-    if not all_contexts:
-        return f"⚠️ Limited information found for: {user_query}."
-    combined = "\n".join(all_contexts)
-    if len(combined) <= CHUNK_SIZE:
-        print("✅ Single chunk (no chunk summarization needed).")
-        long_prompt = (
-            "You are an AI research assistant. Based on the following contexts and the user query, "
-            "create a thoroughly detailed, long-form report. Use headings, bullet points, examples, references, etc. "
-            f"Output can be up to {FINAL_COMPLETION_TOKENS} tokens if needed."
-        )
-        messages = [
-            {"role": "assistant", "content": "You are a specialized long-form report writer."},
-            {"role": "user", "content": f"User Query: {user_query}\n\nContexts:\n{combined}\n\n{long_prompt}"}
-        ]
-        final_report = await call_openai_async(messages, max_comp_tokens=FINAL_COMPLETION_TOKENS)
-        return final_report if final_report else "⚠️ No significant data."
-    print("⚠️ Context too large, using chunk summarization...")
-    summaries = []
-    async for chunk in chunk_text(combined, CHUNK_SIZE):
-        summary = await summarize_chunk(session, chunk)
-        summaries.append(summary)
-    summaries_combined = "\n\n".join(summaries)
-    print(f"✅ Summaries combined length = {len(summaries_combined)} chars")
-    final_prompt = (
-        "You are an AI research assistant. The text below are chunk summaries. "
-        "Please combine them into a single cohesive, multi-sectional, long-form report. "
-        f"You may produce up to {FINAL_COMPLETION_TOKENS} tokens. Include references, headings, examples, etc."
-    )
-    messages = [
-        {"role": "assistant", "content": "You are a specialized long-form report writer with no explicit token limit."},
-        {
-            "role": "user",
-            "content": f"User Query: {user_query}\n\nSummaries:\n{summaries_combined}\n\n{final_prompt}"
-        }
-    ]
-    final_report = await call_openai_async(messages, max_comp_tokens=FINAL_COMPLETION_TOKENS)
-    return final_report if final_report else "⚠️ No final data."
-
-async def gradio_interface(user_query, iteration_limit=10):
-    aggregated_contexts = []
-    all_search_queries = []
-    iteration = 0
-
-    async with aiohttp.ClientSession() as session:
-        new_search_queries = await generate_search_queries_async(session, user_query)
-        if not new_search_queries:
-            return "❌ Không tạo được truy vấn tìm kiếm."
-
-        all_search_queries.extend(new_search_queries)
-
-        while iteration < iteration_limit:
-            search_tasks = [perform_search_async(session, query) for query in new_search_queries]
-            search_results = await asyncio.gather(*search_tasks)
-
-            unique_links = {}
-            for idx, links in enumerate(search_results):
-                query = new_search_queries[idx]
-                for link in links:
-                    if link and link not in unique_links:
-                        unique_links[link] = query
-
-            if not unique_links:
-                iteration += 1
-                continue
-
-            link_tasks = [process_link(session, link, user_query, unique_links[link]) for link in unique_links]
-            link_results = await asyncio.gather(*link_tasks)
-
-            iteration_contexts = [res for res in link_results if res]
-            aggregated_contexts.extend(iteration_contexts)
-
-            if not iteration_contexts:
-                iteration += 1
-                continue
-
-            new_search_queries = await generate_search_queries_async(session, user_query)
-            if not new_search_queries:
-                break
-
-            all_search_queries.extend(new_search_queries)
-            iteration += 1
-
-        if not aggregated_contexts:
-            return "❌ Không có nội dung phù hợp."
-
-        final_report = await generate_final_report_async(session, user_query, aggregated_contexts)
-        return final_report
-
-def run_gradio(user_query, iteration_limit=5):
-    return asyncio.run(gradio_interface(user_query, iteration_limit))
-
-def create_word_file(content, filename='report.docx'):
-    file_stream = io.BytesIO()
-    output = pypandoc.convert_text(content, 'docx', format='md', outputfile=filename)
-    with open(filename, "rb") as f:
-        file_stream.write(f.read())
-    file_stream.seek(0)
-    return file_stream, filename
-
-def create_pdf_file(content, filename='report.pdf'):
-    options = {
-        'encoding': "UTF-8",
-        'quite': ''
+    # Dữ liệu user mock (thay bằng truy vấn database)
+    user = {
+        "fullname": "Nguyễn Văn A",
+        "email": "nguyenvana@example.com",
+        "username": "nguyenvana",
+        "avatar": "/uploads/avatar1.jpg"
     }
-    file_stream = io.BytesIO()
-    pdfkit.from_string(content, file_stream, options=options)
-    file_stream.seek(0)
-    return file_stream, filename
 
-def download_report(content, file_type):
-    if file_type == "doc":
-        return create_word_file(content)
-    elif file_type == "pdf":
-        return create_pdf_file(content)
-    else:
-        raise ValueError("Loại file không hợp lệ. Chọn 'doc' hoặc 'pdf'.")
+    return jsonify({"user": user})
 
-def main():
-    with gr.Blocks() as demo:
-        gr.Markdown("# 🔍 Open Deep Researcher - AI Research Assistant")
 
-        with gr.Row():
-            user_input = gr.Textbox(label="Nhập chủ đề nghiên cứu", placeholder="Nhập câu hỏi của bạn...")
-            iter_input = gr.Number(label="Số vòng lặp tối đa", value=5)
+# Cập nhật thông tin tài khoản
 
-        output_text = gr.Textbox(label="Kết quả nghiên cứu", lines=10)
+@app.route("/api/user/profile", methods=["PUT"])
+def update_profile():
+    token = request.headers.get("Authorization")
+    if not token or token != "Bearer your-token-here":
+        return jsonify({"error": "Unauthorized"}), 401
 
-        submit_btn = gr.Button("🔎 Bắt đầu tìm kiếm")
-        submit_btn.click(run_gradio, inputs=[user_input, iter_input], outputs=output_text)
+    user_id = "mock_user_id"
 
-        with gr.Row():
-            download_doc_btn = gr.Button("📥 Tải về file Word")
-            download_pdf_btn = gr.Button("📥 Tải về file PDF")
+    fullname = request.form.get("fullname")
+    email = request.form.get("email")
+    password = request.form.get("password")
+    avatar = request.files.get("avatar")
 
-        download_doc_btn.click(
-            fn=download_report,
-            inputs=[output_text, gr.State("doc")],
-            outputs=gr.File(label="Tải về file Word"),
-        )
-        download_pdf_btn.click(
-            fn=download_report,
-            inputs=[output_text, gr.State("pdf")],
-            outputs=gr.File(label="Tải về file PDF"),
-        )
+    user = {
+        "fullname": fullname,
+        "email": email,
+        "username": "nguyenvana",
+    }
 
-    demo.queue()
-    demo.launch(share=True)
+    if avatar:
+        filename = secure_filename(avatar.filename)
+        avatar.save(os.path.join("uploads", filename))
+        user["avatar"] = f"/uploads/{filename}"
 
-from AutoReportX import run_gradio
+    return jsonify({"user": user})
+
+
+# Gọi hàn từ AutoReportX.py 
+
+class QueryRequest(BaseModel):
+    user_query: str
+    iteration_limit: int = 5
+
+@app.post("/predict/")
+async def predict(request: QueryRequest):
+    try:
+        # Gọi hàm từ AutoReportX.py
+        result = run_gradio(request.user_query, request.iteration_limit)
+        return {"data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__": 
     # Chạy Server

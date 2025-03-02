@@ -91,7 +91,7 @@
   <script setup>
   import { useRouter } from 'vue-router';
   import { inject } from 'vue';
-  import {ref, computed } from 'vue';
+  import {ref, computed, reactive } from 'vue';
   import axios from "axios";
 
   const router = useRouter();
@@ -155,19 +155,62 @@
     router.push("/login");
   };
 
+  // Khai báo biến
   const fullname = ref("");
   const email = ref("");
   const username = ref("");
   const password = ref("");
   const confirmPassword = ref("");
 
+  //Khai báo errors 
+  const errors = reactive({
+    fullname: "",
+    email: "",
+    username: "",
+    password: "",
+    confirmPassword: ""
+  });
+
   const handleSignUp = async () => {
+  
+  // Kiểm tra đầu vào trước khi gửi request
+  errors.fullname = fullname.value ? "" : "Họ và tên không được để trống.";
+  errors.email = email.value ? "" : "Email không được để trống.";
+  errors.username = username.value ? "" : "Tên đăng nhập không được để trống.";
+  errors.password = password.value ? "" : "Mật khẩu không được để trống.";
+  errors.confirmPassword = confirmPassword.value ? "" : "Vui lòng xác nhận mật khẩu.";
+
+  // Kiểm tra email hợp lệ
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.value)) {
+    errors.email = "Email không hợp lệ.";
+  }
+
+  // 🔹 Kiểm tra mật khẩu tối thiểu 6 ký tự
+  if (password.value.length < 6) {
+    errors.password = "Mật khẩu phải có ít nhất 6 ký tự.";
+  }
+
+  // 🔹 Kiểm tra mật khẩu nhập lại có khớp không
   if (password.value !== confirmPassword.value) {
-    alert("❌ Mật khẩu xác nhận không khớp!");
+    errors.confirmPassword = "Mật khẩu xác nhận không khớp.";
+  }
+
+  // 🔹 Nếu có lỗi, dừng lại luôn
+  if (
+    errors.fullname || 
+    errors.email || 
+    errors.username || 
+    errors.password || 
+    errors.confirmPassword
+  ) {
+    alert("⚠️ Vui lòng kiểm tra lại thông tin đăng ký!");
     return;
   }
 
   try {
+    console.log("Bắt đầu gửi request đăng ký...");
+
     const response = await axios.post("/api/auth/register", {
       fullname: fullname.value,
       email: email.value,

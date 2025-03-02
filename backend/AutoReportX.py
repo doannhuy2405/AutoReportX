@@ -40,9 +40,9 @@ together_client = Together(api_key=TOGETHER_API_KEY)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
 
-# ============================
+# ==================================
 # Asynchronous Helper Functions
-# ============================
+# ==================================
 
 async def call_together_ai_async(messages, model=DEFAULT_MODEL_TOGETHER):
     """Gọi Together AI để tạo search queries."""
@@ -303,7 +303,7 @@ async def gradio_interface(user_query, iteration_limit=10):
         final_report = await generate_final_report_async(session, user_query, aggregated_contexts)
         return final_report
 
-def run_gradio(user_query, iteration_limit=5):
+def run_gradio(user_query, iteration_limit=10):
     """Hàm đồng bộ chạy async_main() để tích hợp vào Gradio."""
     return asyncio.run(gradio_interface(user_query, iteration_limit))
 
