@@ -10,7 +10,7 @@ module.exports = defineConfig({
         target: 'http://localhost:5000', // Backend mặc định
         changeOrigin: true,
         secure: false,
-        pathRewrite: { '^/api': '' }, // Giữ nguyên tiền tố /api
+        pathRewrite: { '^/api': '' }, // Xóa nguyên tiền tố /api
       },
     },
   },

@@ -4,7 +4,7 @@
         <div class="container">
           <div class="header-container">
             <div style="flex: 1; text-align: center;">
-              <h1 style="padding-left: 150px; font-size: 3em;">AutoReportX</h1>
+              <h1 style="padding-left: 150px; font-size: 4em;">AutoReportX</h1>
             </div>
   
             <div class="auth-options" style="display: flex; align-items: center; gap: 15px;">
@@ -85,7 +85,7 @@
   import { inject } from "vue";
   import { useRouter } from 'vue-router';
 
-  //   // Reactive state
+// Hàm tạo báo cáo tự động
 const userQuery = ref('');
 const result = ref('');
 const loading = ref(false);
@@ -107,7 +107,7 @@ const loading = ref(false);
       },
       body: JSON.stringify({
         user_query: userQuery.value, // user_query
-        iteration_limit: 5,         // iteration_limit
+        iteration_limit: 1,         // iteration_limit
       }),
     });
 
@@ -124,6 +124,84 @@ const loading = ref(false);
     loading.value = false;
   }
 };
+
+// Hàm dowload file 
+
+const downloadReport = async (fileType) => {
+  if (!result.value) {
+    alert('Không có kết quả để tải về!');
+    return;
+  }
+  console.log(fileType, result.value)
+
+  try {
+    const response = await fetch('/api/download-report/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        content: result.value,
+        file_type: fileType,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Lỗi HTTP: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileType === 'doc' ? 'report.docx' : 'report.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Lỗi khi tải file:', error);
+    alert('Đã xảy ra lỗi khi tải file.');
+  }
+};
+
+// const downloadReport = async (fileType) => {
+//   if (!result.value) {
+//     alert('Không có kết quả để tải về!');
+//     return;
+//   }
+
+//   try {
+//     const response = await fetch('/api/download-report/', {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify({
+//         content: result.value, // Nội dung từ kết quả
+//         file_type: fileType,   // Loại file: 'doc' hoặc 'pdf'
+//       }),
+//     });
+
+//     if (!response.ok) {
+//       throw new Error(`Lỗi HTTP: ${response.status}`);
+//     }
+
+//     // Xử lý tải file
+//     const blob = await response.blob();
+//     const url = window.URL.createObjectURL(blob);
+//     const a = document.createElement('a');
+//     a.href = url;
+//     a.download = fileType === 'doc' ? 'report.docx' : 'report.pdf';
+//     document.body.appendChild(a);
+//     a.click();
+//     document.body.removeChild(a);
+//     window.URL.revokeObjectURL(url);
+//   } catch (error) {
+//     console.error('Lỗi khi tải file:', error);
+//     alert('Đã xảy ra lỗi khi tải file.');
+//   }
+// };
 
 
   const user = ref({
@@ -202,6 +280,7 @@ const loading = ref(false);
 }
 
 input {
+  background: rgba(255, 255, 255, 0.8);
   width: 100%;
   padding: 10px;
   margin-bottom: 10px;
@@ -209,16 +288,18 @@ input {
 }
 
 button {
+  background: rgba(255, 255, 255, 0.8);
   padding: 10px 20px;
   font-size: 16px;
   margin: 5px;
   cursor: pointer;
 }
 
+
 pre {
   white-space: pre-wrap;
   word-wrap: break-word;
-  background: #f4f4f4;
+  background: rgba(255, 255, 255, 0.8);
   padding: 10px;
   border-radius: 5px;
   text-align: left;

@@ -3,11 +3,13 @@ import os
 import bcrypt
 import uvicorn
 import uuid
+import pypandoc
+from fastapi.responses import StreamingResponse
 from datetime import datetime, timedelta
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from AutoReportX import run_gradio #Import hànm từ AutoReportX
-from fastapi import FastAPI, HTTPException, Depends, status, File, UploadFile
+from AutoReportX import run_gradio, create_word_file, create_pdf_file #Import hànm từ AutoReportX
+from fastapi import FastAPI, HTTPException, Depends, status, File, UploadFile, Response
 from pymongo import MongoClient
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -15,6 +17,9 @@ from bson import ObjectId
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 #--------------------------------------------------------------------------------
+
+# Tải pandoc tích hợp sẵn
+pypandoc.download_pandoc()
 
 # Load biến môi trường
 load_dotenv()
@@ -142,7 +147,7 @@ def decode_token(token: str):
 
 
 # API lấy thông tin người dùng
-@app.get("/api/user/profile")
+@app.get("/user/profile")
 async def get_user_profile(token: str = Depends(oauth2_scheme)):
     username = decode_token(token)
     user = users_collection.find_one({"username": username})
@@ -158,7 +163,7 @@ async def get_user_profile(token: str = Depends(oauth2_scheme)):
 
 
 # API cập nhật thông tin người dùng
-@app.put("/api/user/profile")
+@app.put("/user/profile")
 async def update_user_profile(
     fullname: str = None,
     email: str = None,
@@ -227,7 +232,34 @@ async def predict(request: QueryRequest):
         return {"data": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
 
+class DownloadRequest(BaseModel):
+    content: str
+    file_type: str
+    
+@app.post("/download-report/")
+async def download_report(request: DownloadRequest):
+    try:
+        print("Nhận yêu cầu tải file với loại:", request.file_type)
+        if request.file_type == "doc":
+            file_stream, filename = create_word_file(request.content)
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        elif request.file_type == "pdf":
+            file_stream, filename = create_pdf_file(request.content, 'report.pdf')
+            media_type = "application/pdf"
+        else:
+            return {"error": "Loại file không hợp lệ. Chọn 'doc' hoặc 'pdf'."}
+
+        return StreamingResponse(
+            file_stream,
+            media_type=media_type,
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        return {"error": f"Lỗi khi tạo file: {str(e)}"}
+    
+    
 if __name__ == "__main__": 
     # Chạy Server
     uvicorn.run(app, host="0.0.0.0", port=5000)

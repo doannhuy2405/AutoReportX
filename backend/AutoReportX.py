@@ -2,13 +2,15 @@ import asyncio
 import aiohttp
 import gradio as gr
 import io
-from gradio.components import File
 import os
 import re
+import nest_asyncio
 from tavily import TavilyClient
 from together import Together
 from openai import OpenAI
-import nest_asyncio
+from gradio.components import File
+from io import BytesIO
+
 nest_asyncio.apply()
 
 # ===============================================
@@ -252,7 +254,7 @@ async def generate_final_report_async(session, user_query, all_contexts):
 # Main Asynchronous Routine
 # =========================
 
-async def gradio_interface(user_query, iteration_limit=10):
+async def gradio_interface(user_query, iteration_limit=1):
     """Hàm chạy async_main() và hiển thị kết quả trên giao diện Gradio."""
     aggregated_contexts = []
     all_search_queries = []
@@ -303,7 +305,7 @@ async def gradio_interface(user_query, iteration_limit=10):
         final_report = await generate_final_report_async(session, user_query, aggregated_contexts)
         return final_report
 
-def run_gradio(user_query, iteration_limit=10):
+def run_gradio(user_query, iteration_limit=1):
     """Hàm đồng bộ chạy async_main() để tích hợp vào Gradio."""
     return asyncio.run(gradio_interface(user_query, iteration_limit))
 
@@ -330,16 +332,14 @@ import pdfkit  # type: ignore
 from io import BytesIO
 
 def create_pdf_file(content, filename='report.pdf'):
-  """ Tạo file từ nội dung báo cáo sử dụng pdfkit"""
-  options = {
-      'encoding': "UTF-8",
-      'quite': ''
-  }
-
-  file_stream = BytesIO()
-  pdfkit.from_string(content, file_stream, options=options)
-  file_stream.seek(0)
-  return file_stream, filename
+    options = {
+        'encoding': "UTF-8",
+        'quite': ''
+    }
+    file_stream = BytesIO()
+    pdfkit.from_string(content, file_stream, options=options)
+    file_stream.seek(0)
+    return file_stream, filename
 
 # ==============================================================================
 # Giao diện Gradio
@@ -355,7 +355,7 @@ def download_report(content, file_type):
     else:
         raise ValueError("Loại file không hợp lệ. Chọn 'doc' hoặc 'pdf'.")
 
-def run_gradio(user_query, iteration_limit=5):
+def run_gradio(user_query, iteration_limit=1):
     """Hàm đồng bộ chạy async_main() để tích hợp vào Gradio."""
     final_report = asyncio.run(gradio_interface(user_query, iteration_limit))
     return final_report

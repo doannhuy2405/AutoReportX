@@ -37,7 +37,7 @@
           </div>
         </div>
 
-        <div class="tagline-box text-center">
+        <div class="tagline-box text-center" style="background: rgba(255, 255, 255, 0.8);">
           {{ currentTranslations.tagline }}
         </div>
       </div>
