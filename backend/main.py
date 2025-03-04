@@ -2,16 +2,19 @@ import jwt
 import os
 import bcrypt
 import uvicorn
+import uuid
 from datetime import datetime, timedelta
 from fastapi.middleware.cors import CORSMiddleware
-from flask import Flask, jsonify, request # type: ignore
-from flask_cors import CORS # type: ignore
 from pydantic import BaseModel
 from AutoReportX import run_gradio #Import hànm từ AutoReportX
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, status, File, UploadFile
 from pymongo import MongoClient
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from bson import ObjectId
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+#--------------------------------------------------------------------------------
 
 # Load biến môi trường
 load_dotenv()
@@ -122,56 +125,95 @@ async def login(user: UserLogin):
     return {"token": token, "username": db_user["username"], "fullname": db_user["fullname"]}
 
 
-# Lấy thông tin tài khoản
-@app.route("/api/user/profile", methods=["GET"])
-def get_profile():
-    token = request.headers.get("Authorization")
-    if not token or token != "Bearer your-token-here":
-        return jsonify({"error": "Unauthorized"}), 401
+# Cấu hình OAuth2
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
-    user_id = "mock_user_id"  # Xác định user từ token trong thực tế
+# Hàm giải mã token
+def decode_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        username: str = payload.get("username")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return username
+    except JWTError as e:
+        print("❌ Lỗi giải mã token:", str(e))
+        raise HTTPException(status_code=401, detail="Invalid token")
 
-    # Dữ liệu user mock (thay bằng truy vấn database)
-    user = {
-        "fullname": "Nguyễn Văn A",
-        "email": "nguyenvana@example.com",
-        "username": "nguyenvana",
-        "avatar": "/uploads/avatar1.jpg"
+
+# API lấy thông tin người dùng
+@app.get("/api/user/profile")
+async def get_user_profile(token: str = Depends(oauth2_scheme)):
+    username = decode_token(token)
+    user = users_collection.find_one({"username": username})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {
+        "fullname": user.get("fullname", ""),
+        "email": user.get("email", ""),
+        "username": user.get("username", ""),
+        "avatar": user.get("avatar", "uploads/default_avatar.png")  # Avatar mặc định
     }
 
-    return jsonify({"user": user})
+
+# API cập nhật thông tin người dùng
+@app.put("/api/user/profile")
+async def update_user_profile(
+    fullname: str = None,
+    email: str = None,
+    password: str = None,
+    avatar: UploadFile = File(None),
+    token: str = Depends(oauth2_scheme)
+):
+    try:
+        username = decode_token(token)
+        user = users_collection.find_one({"username": username})
+        if not user:
+            raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
+
+        update_data = {}
+        if fullname:
+            update_data["fullname"] = fullname
+        if email:
+            update_data["email"] = email
+        if password:
+            update_data["password"] = hash_password(password)
+        if avatar:
+            # Kiểm tra định dạng file
+            if avatar.content_type not in ["image/jpeg", "image/png", "image/webp"]:
+                raise HTTPException(status_code=400, detail="Chỉ chấp nhận file JPG, PNG, WEBP!")
+
+            # Kiểm tra kích thước file (giới hạn 2MB)
+            if avatar.size > 2 * 1024 * 1024:
+                raise HTTPException(status_code=400, detail="Kích thước ảnh quá lớn! (Tối đa 2MB)")
+
+            # Lưu avatar vào thư mục uploads
+            file_extension = avatar.filename.split(".")[-1]
+            unique_filename = f"{uuid.uuid4()}.{file_extension}"
+            avatar_path = f"uploads/{unique_filename}"
+
+            with open(avatar_path, "wb") as buffer:
+                buffer.write(avatar.file.read())
+
+            update_data["avatar"] = f"/{avatar_path}"
+
+        # Cập nhật vào MongoDB
+        users_collection.update_one({"username": username}, {"$set": update_data})
+
+        return {"message": "Cập nhật thông tin thành công"}
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print("❌ Lỗi cập nhật:", e)
+        raise HTTPException(status_code=500, detail="Lỗi server khi cập nhật thông tin người dùng")
+
+# Tạo thư mục uploads nếu chưa tồn tại
+if not os.path.exists("uploads"):
+    os.makedirs("uploads")
 
 
-# Cập nhật thông tin tài khoản
-
-@app.route("/api/user/profile", methods=["PUT"])
-def update_profile():
-    token = request.headers.get("Authorization")
-    if not token or token != "Bearer your-token-here":
-        return jsonify({"error": "Unauthorized"}), 401
-
-    user_id = "mock_user_id"
-
-    fullname = request.form.get("fullname")
-    email = request.form.get("email")
-    password = request.form.get("password")
-    avatar = request.files.get("avatar")
-
-    user = {
-        "fullname": fullname,
-        "email": email,
-        "username": "nguyenvana",
-    }
-
-    if avatar:
-        filename = secure_filename(avatar.filename)
-        avatar.save(os.path.join("uploads", filename))
-        user["avatar"] = f"/uploads/{filename}"
-
-    return jsonify({"user": user})
-
-
-# Gọi hàn từ AutoReportX.py 
+# Gọi hàm từ AutoReportX.py 
 
 class QueryRequest(BaseModel):
     user_query: str

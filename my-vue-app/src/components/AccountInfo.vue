@@ -3,66 +3,60 @@
       <div class="content">
         <div class="container-fluid">
           <div class="header-container" style="text-align: center;">
-            <h1 style="font-size: 7em;">AutoReportX</h1> 
+            <h1 style="font-size: 7em; text-align: center;">AutoReportX</h1> 
           </div>   
   
           <br><br>
 
+          <div class="auth-options">
+              <select id="language-select" v-model="language" @change="toggleLanguage">
+                <option value="vi">Tiếng Việt VN</option>
+                <option value="en">English US</option>
+              </select>
+            </div>
+
           <div class="auth-form">
             <h2>{{ translations[language].profileTitle }}</h2>
             <form @submit.prevent="updateProfile">
+
+              <!-- Avatar và upload -->
               <div class="avatar-upload">
-                <img :src="avatarPreview || user.avatar" class="avatar" />
                 <input type="file" @change="handleAvatarUpload" accept="image/*" />
+                <img :src="avatarPreview || require('@/assets/default_avatar.png')" alt="Avatar" />
               </div>
 
+              <!-- Thông tin người dùng -->
               <div class="form-group">
                 <label for="fullname">{{ translations[language].fullnameLabel }}</label>
-                <input type="text" v-model="user.fullname" id="fullname" />
+                <input v-model="user.fullname" type="text" required />
               </div>
 
               <div class="form-group">
                 <label for="email">{{ translations[language].emailLabel }}</label>
-                <input type="email" v-model="user.email" id="email" />
+                <input v-model="user.email" type="email" required />
               </div>
 
               <div class="form-group">
                 <label for="username">{{ translations[language].usernameLabel }}</label>
-                <input type="text" v-model="user.username" id="username" disabled />
+                <input type="text" v-model="user.username" id="username" disabled readonly />
               </div>
 
               <div class="form-group">
                 <label for="password">{{ translations[language].passwordLabel }}</label>
-                <input type="password" v-model="user.password" id="password" placeholder="Nhập mật khẩu mới (nếu cần)" />
+                <input
+                  type="password"
+                  v-model="user.password"
+                  id="password"
+                  :placeholder="translations[language].passwordPlaceholder"
+                />
               </div>
 
-              <button class="btn-update">{{ translations[language].updateButton }}</button>
+              <!-- Nút cập nhật -->
+              <button type="submit" class="btn-update">
+                {{ translations[language].updateButton }}
+              </button>
             </form>
           </div>
-  
-          <!-- Nội dung sẽ được thay đổi theo ngôn ngữ
-          <div id="content">
-            <div>
-              <h2>{{ currentTranslations.title }}</h2><br><br>
-              <p>{{ currentTranslations.search }}</p><br>
-              <p>{{ currentTranslations.extraction }}</p><br>
-              <p>{{ currentTranslations.assessment }}</p><br>
-              <p>{{ currentTranslations.reporting }}</p><br>
-              <h4>{{ currentTranslations.conclusion }}</h4><br><br>
-              
-            </div>  
-
-            <div class="header-logo">
-                    <img src="../assets/logo.png" alt="AutoReportX Logo">
-                </div>
-          </div>
-        </div> -->
-
-        <div class="tagline-box text-center">
-          {{ currentTranslations.tagline }}
-        </div>
-      </div>
-      <br><br>
   
       <div class="contact-info">
         <p>{{ currentTranslations.contactTitle }}</p><br>
@@ -88,91 +82,105 @@
       </footer>
     </div>
   </div>
+  </div>
 </template>
-  
-  <script setup>
-//   import { RouterLink } from 'vue-router';
+
+
+<script setup>
+
   import {ref, computed, reactive, onMounted } from 'vue';
   import { inject } from "vue";
   import axios from "axios";
-
+  
+  // Lấy ngôn ngữ từ inject
   const language = ref(inject("language"));
+  const toggleLanguage = inject("toggleLanguage");
 
-  // 🔹 Khởi tạo biến lưu thông tin user
-const user = reactive({
-  fullname: "",
-  email: "",
-  username: "",
-  password: "",
-  avatar: "../assets/default_avatar.png"
-});
+  // Dịch ngôn ngữ động
+  const currentTranslations = computed(() => translations[language.value]);
 
-const response = await axios.get("/api/user/info");
-const userData = response.data; // Lấy dữ liệu từ response
+  const user = reactive({
+    fullname: "",
+    email: "",
+    username: "",
+    password: "",
+    avatar: "@/assets/default_avatar.png", // Avatar mặc định
+  });
 
-// Gán dữ liệu vào biến dùng trong Vue
-username.value = userData.username;
-email.value = userData.email;
-avatarUrl.value = userData.avatar;
+const avatarPreview = ref(null); // Hiển thị preview avatar
+const avatarFile = ref(null); // File avatar được chọn
 
 
-const avatarPreview = ref(null);
-
-// 🔹 Gọi API để lấy thông tin user từ backend
+// API để lấy thông tin người dùng
 const fetchUserProfile = async () => {
   try {
-    const token = localStorage.getItem("token"); // Lấy token từ localStorage
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("⚠️ Bạn chưa đăng nhập!");
+      return;
+    }
+
     const response = await axios.get("/api/user/profile", {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
     });
 
-    // 🔹 Cập nhật thông tin user từ API
-    Object.assign(user, response.data.user);
-
-    console.log("✅ Lấy thông tin user thành công:", response.data.user);
+    Object.assign(user, response.data);
+    avatarPreview.value = user.avatar || require("@/assets/default_avatar.png"); // Sử dụng avatar mặc định nếu không có
+    console.log("✅ Lấy thông tin user thành công:", response.data);
   } catch (error) {
     console.error("❌ Lỗi khi lấy thông tin user:", error);
     alert("⚠️ Không thể lấy thông tin tài khoản!");
   }
 };
 
-onMounted(fetchUserProfile);
 
-// 🔹 Xử lý upload avatar
+// Xử lý upload avatar
 const handleAvatarUpload = (event) => {
   const file = event.target.files[0];
-  if (file) {
-    avatarPreview.value = URL.createObjectURL(file);
-    user.avatar = file; // Lưu file để gửi lên server
+  if (!file) return;
+
+  // Kiểm tra định dạng file (chỉ nhận ảnh)
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowedTypes.includes(file.type)) {
+    alert("⚠️ Chỉ chấp nhận file JPG, PNG, WEBP!");
+    return;
   }
+
+  // Kiểm tra kích thước file (giới hạn 2MB)
+  if (file.size > 2 * 1024 * 1024) {
+    alert("⚠️ Kích thước ảnh quá lớn! (Tối đa 2MB)");
+    return;
+  }
+
+  avatarPreview.value = URL.createObjectURL(file);
+  avatarFile.value = file;
 };
 
-// 🔹 Xử lý cập nhật thông tin tài khoản
+// Xử lý cập nhật thông tin tài khoản
 const updateProfile = async () => {
   try {
     const formData = new FormData();
     formData.append("fullname", user.fullname);
     formData.append("email", user.email);
-    if (user.password) formData.append("password", user.password);
-    if (user.avatar instanceof File) {
-      formData.append("avatar", user.avatar);
-    }
+    if (user.password) formData.append("password", user.password); // Chỉ gửi nếu có nhập
+    if (avatarFile.value) formData.append("avatar", avatarFile.value);
 
     const token = localStorage.getItem("token");
 
-    const response = await axios.put("/api/user/profile", formData, {
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" }
+    await axios.put("/api/user/profile", formData, {
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
     });
 
     alert("🎉 Cập nhật thành công!");
-    
-    // 🔹 Cập nhật lại giao diện
-    fetchUserProfile();
+    fetchUserProfile(); // Cập nhật lại giao diện
   } catch (error) {
     console.error("❌ Lỗi cập nhật:", error);
     alert("⚠️ Cập nhật thất bại!");
   }
 };
+
+
+onMounted(fetchUserProfile);
 
   const translations = {
     vi: {
@@ -200,11 +208,6 @@ const updateProfile = async () => {
       contactAddress: "📍 Address: College of Information and Communication Technology, Can Tho University"
     }
   };
-  
-  const currentTranslations = computed(() => translations[language.value]);
-  
-
-
   </script>
   
   <style scoped >
@@ -442,6 +445,20 @@ const updateProfile = async () => {
       margin-bottom: 15px;
   }
 
+  .form-group input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+  .form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
   .avatar-upload {
   text-align: center;
   margin-bottom: 20px;
@@ -452,6 +469,7 @@ const updateProfile = async () => {
   height: 100px;
   border-radius: 50%;
   object-fit: cover;
+  margin-bottom: 10px;
 }
 
 input[type="file"] {
@@ -467,17 +485,17 @@ input {
 }
 
 .btn-update {
-  width: 100%;
-  padding: 10px;
-  background: #007bff;
-  color: #fff;
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
   border: none;
-  border-radius: 5px;
+  border-radius: 4px;
   cursor: pointer;
+  font-size: 16px;
 }
 
 .btn-update:hover {
-  background: #0056b3;
+  background-color: #0056b3;
 }
 
 </style>
