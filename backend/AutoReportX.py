@@ -24,10 +24,6 @@ TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 OPENAI_API_KEY = os.getenv("MY_OPENAI_API_KEY")
 
-print(f"TOGETHER_API_KEY: {TOGETHER_API_KEY}") 
-print(f"TAVILY_API: {TAVILY_API_KEY}") 
-print(f"OPENAI_API_KEY: {OPENAI_API_KEY}") 
-
 DEFAULT_MODEL_TOGETHER = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B"
 FINAL_REPORT_MODEL_OPENAI = "o1-mini"  # Supports up to ~65k tokens for completion
 
