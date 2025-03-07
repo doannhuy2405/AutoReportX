@@ -328,18 +328,90 @@ def create_word_file(content, filename='report.docx'):
 # Hàm tạo PDF
 #============================================================================
 
-import pdfkit  # type: ignore
 from io import BytesIO
+from reportlab.lib.pagesizes import letter # type: ignore
+from reportlab.pdfgen import canvas # type: ignore
+from reportlab.lib.units import inch # type: ignore
+from reportlab.pdfbase.pdfmetrics import stringWidth # type: ignore
 
 def create_pdf_file(content, filename='report.pdf'):
-    options = {
-        'encoding': "UTF-8",
-        'quite': ''
-    }
-    file_stream = BytesIO()
-    pdfkit.from_string(content, file_stream, options=options)
-    file_stream.seek(0)
-    return file_stream, filename
+    try:
+        # Tạo một file PDF trong bộ nhớ
+        file_stream = BytesIO()
+        pdf = canvas.Canvas(file_stream, pagesize=letter)
+
+        # Đặt font và kích thước
+        font_name = "Times-Roman"
+        font_size = 12
+        pdf.setFont(font_name, font_size)
+
+        # Giới hạn chiều rộng trang (trừ lề)
+        page_width, page_height = letter
+        margin = 30  # Lề trái & phải
+        max_width = page_width - 2 * margin  # Chiều rộng khả dụng
+        y_position = page_height - 50  # Vị trí bắt đầu
+
+        # Xử lý xuống dòng tự động
+        def split_text(text, max_width, font_name, font_size):
+            words = text.split()
+            lines = []
+            current_line = ""
+
+            for word in words:
+                test_line = current_line + " " + word if current_line else word
+                if stringWidth(test_line, font_name, font_size) <= max_width:
+                    current_line = test_line
+                else:
+                    lines.append(current_line)
+                    current_line = word
+
+            if current_line:
+                lines.append(current_line)
+
+            return lines
+
+        # Xử lý từng dòng văn bản
+        text_lines = []
+        for line in content.split("\n"):
+            text_lines.extend(split_text(line, max_width, font_name, font_size))
+
+        # Vẽ từng dòng lên trang PDF
+        line_spacing = 14  # Khoảng cách dòng
+        for line in text_lines:
+            if y_position < 50:  # Nếu hết trang -> tạo trang mới
+                pdf.showPage()
+                pdf.setFont(font_name, font_size)
+                y_position = page_height - 50
+
+            pdf.drawString(margin, y_position, line)
+            y_position -= line_spacing
+
+        # Kết thúc trang và lưu file PDF
+        pdf.showPage()
+        pdf.save()
+
+        # Đưa con trỏ về đầu file stream
+        file_stream.seek(0)
+
+        return file_stream, filename
+    except Exception as e:
+        print(f"Lỗi khi tạo file PDF: {str(e)}")
+        raise e
+
+
+
+# import pdfkit  # type: ignore
+# from io import BytesIO
+
+# def create_pdf_file(content, filename='report.pdf'):
+#     options = {
+#         'encoding': "UTF-8",
+#         'quiet': ''
+#     }
+#     file_stream = BytesIO()
+#     pdfkit.from_string(content, file_stream, options=options)
+#     file_stream.seek(0)
+#     return file_stream, filename
 
 # ==============================================================================
 # Giao diện Gradio

@@ -4,16 +4,21 @@
         <div class="container-fluid">
           <div class="header-container" style="text-align: center;">
             <h1 style="font-size: 7em; text-align: center;">AutoReportX</h1> 
-          </div>   
-  
-          <br><br>
 
-          <div class="auth-options">
+            <div class="auth-options">
               <select id="language-select" v-model="language" @change="toggleLanguage">
                 <option value="vi">Tiếng Việt VN</option>
                 <option value="en">English US</option>
               </select>
             </div>
+          </div>
+  
+          <br><br>
+
+          <div v-if="user">
+            <p>{{ translations[language].sayHiWithUser }}, {{ user.fullname }}</p>
+            <!-- <img :src="user.avatar" alt="User Avatar" style="width: 100px; height: 100px; border-radius: 50%;" /> -->
+          </div>
 
           <div class="auth-form">
             <h2>{{ translations[language].profileTitle }}</h2>
@@ -88,99 +93,118 @@
 
 <script setup>
 
-  import {ref, computed, reactive, onMounted } from 'vue';
+  import {ref, computed, onMounted } from 'vue';
   import { inject } from "vue";
   import axios from "axios";
   
-  // Lấy ngôn ngữ từ inject
+// Lấy ngôn ngữ từ inject
   const language = ref(inject("language"));
   const toggleLanguage = inject("toggleLanguage");
 
-  // Dịch ngôn ngữ động
+ // Dịch ngôn ngữ động
   const currentTranslations = computed(() => translations[language.value]);
 
-  const user = reactive({
+  const user = ref({
     fullname: "",
     email: "",
     username: "",
     password: "",
-    avatar: "@/assets/default_avatar.png", // Avatar mặc định
   });
 
-const avatarPreview = ref(null); // Hiển thị preview avatar
+const avatarPreview = ref(''); // Hiển thị preview avatar
 const avatarFile = ref(null); // File avatar được chọn
 
 
-// API để lấy thông tin người dùng
-const fetchUserProfile = async () => {
-  try {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      alert("⚠️ Bạn chưa đăng nhập!");
-      return;
-    }
+// // API để lấy thông tin người dùng
+// const fetchUserProfile = async () => {
+//   try {
+//     const token = localStorage.getItem("token");
+//     if (!token) {
+//       alert("⚠️ Bạn chưa đăng nhập!");
+//       return;
+//     }
 
-    const response = await axios.get("/api/user/profile", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+//     const response = await axios.get("/api/user/profile", {
+//       headers: { Authorization: `Bearer ${token}` },
+//     });
 
-    Object.assign(user, response.data);
-    avatarPreview.value = user.avatar || require("@/assets/default_avatar.png"); // Sử dụng avatar mặc định nếu không có
-    console.log("✅ Lấy thông tin user thành công:", response.data);
-  } catch (error) {
-    console.error("❌ Lỗi khi lấy thông tin user:", error);
-    alert("⚠️ Không thể lấy thông tin tài khoản!");
+//     Object.assign(user, response.data);
+//     avatarPreview.value = user.avatar || require("@/assets/default_avatar.png"); // Sử dụng avatar mặc định nếu không có
+//     console.log("✅ Lấy thông tin user thành công:", response.data);
+//   } catch (error) {
+//     console.error("❌ Lỗi khi lấy thông tin user:", error);
+//     alert("⚠️ Không thể lấy thông tin tài khoản!");
+//   }
+// };
+
+// Lấy thông tin người dùng từ localStorage hoặc API
+onMounted(() => {
+  const savedUser = localStorage.getItem('user');
+  if (savedUser) {
+    user.value = JSON.parse(savedUser);
+    avatarPreview.value = user.value.avatar; // Hiển thị avatar hiện tại
   }
-};
+});
 
 
 // Xử lý upload avatar
 const handleAvatarUpload = (event) => {
   const file = event.target.files[0];
-  if (!file) return;
+  if (file) {
+    // Kiểm tra định dạng file
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      alert('Chỉ chấp nhận file JPG, PNG, WEBP!');
+      return;
+    }
 
-  // Kiểm tra định dạng file (chỉ nhận ảnh)
-  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-  if (!allowedTypes.includes(file.type)) {
-    alert("⚠️ Chỉ chấp nhận file JPG, PNG, WEBP!");
-    return;
+    // Kiểm tra kích thước file (giới hạn 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Kích thước ảnh quá lớn! (Tối đa 2MB)');
+      return;
+    }
+
+    // Hiển thị preview avatar
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      avatarPreview.value = e.target.result;
+    };
+    reader.readAsDataURL(file);
+
+    avatarFile.value = file; // Lưu file để gửi lên server
   }
-
-  // Kiểm tra kích thước file (giới hạn 2MB)
-  if (file.size > 2 * 1024 * 1024) {
-    alert("⚠️ Kích thước ảnh quá lớn! (Tối đa 2MB)");
-    return;
-  }
-
-  avatarPreview.value = URL.createObjectURL(file);
-  avatarFile.value = file;
 };
 
-// Xử lý cập nhật thông tin tài khoản
+// Cập nhật thông tin tài khoản
 const updateProfile = async () => {
   try {
     const formData = new FormData();
-    formData.append("fullname", user.fullname);
-    formData.append("email", user.email);
-    if (user.password) formData.append("password", user.password); // Chỉ gửi nếu có nhập
-    if (avatarFile.value) formData.append("avatar", avatarFile.value);
+    formData.append("fullname", user.value.fullname);
+    formData.append("email", user.value.email);
 
+    if (user.value.password) {
+      formData.append("password", user.value.password); // Chỉ gửi nếu có nhập
+    }
+    if (avatarFile.value) {
+       formData.append("avatar", avatarFile.value);
+    }
     const token = localStorage.getItem("token");
-
-    await axios.put("/api/user/profile", formData, {
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
+    const response = await axios.put("/api/user/profile", formData, {
+      headers: { 
+        Authorization: `Bearer ${token}`, 
+        "Content-Type": "multipart/form-data" },
     });
 
-    alert("🎉 Cập nhật thành công!");
-    fetchUserProfile(); // Cập nhật lại giao diện
+    // Cập nhật thông tin người dùng trong localStorage
+    user.value.avatar = response.data.avatar;
+    localStorage.setItem('user', JSON.stringify(user.value));
+
+    alert("🎉 Cập nhật thông tin thành công!");
   } catch (error) {
     console.error("❌ Lỗi cập nhật:", error);
-    alert("⚠️ Cập nhật thất bại!");
+    alert("⚠️ Cập nhật thông tin thất bại!");
   }
 };
 
-
-onMounted(fetchUserProfile);
 
   const translations = {
     vi: {
@@ -193,7 +217,8 @@ onMounted(fetchUserProfile);
       contactTitle: "Mọi chi tiết xin vui lòng liên hệ:",
       contactEmail: "📧 Email: yb2207580@student.ctu.edu.vn",
       contactPhone: "📞 Hotline: 0848-077-996 Hoặc 0559-285-596",
-      contactAddress: "📍 Địa chỉ: Trường Công nghệ Thông tin & Truyền thông"
+      contactAddress: "📍 Địa chỉ: Trường Công nghệ Thông tin & Truyền thông",
+      sayHiWithUser: "Xin chào"
     },
     en: {
       profileTitle: "Account Information",
@@ -205,7 +230,8 @@ onMounted(fetchUserProfile);
       contactTitle: "For further details, please contact:",
       contactEmail: "📧 Email: yb2207580@student.ctu.edu.vn",
       contactPhone: "📞 Hotline: 0848-077-996 or 0559-285-596",
-      contactAddress: "📍 Address: College of Information and Communication Technology, Can Tho University"
+      contactAddress: "📍 Address: College of Information and Communication Technology, Can Tho University",
+      sayHiWithUser: "Hi"
     }
   };
   </script>
@@ -216,37 +242,6 @@ onMounted(fetchUserProfile);
       padding: 0;
       box-sizing: border-box;
       font-family: Arial, sans-serif;
-  }
-
-  h2 {
-      text-indent: 2em;
-      font-size: 1.2em;
-      max-width: 80%;
-      word-wrap: break-word;
-      text-align: justify;
-  }
-
-  p {
-      font-size: 1em;
-      max-width: 75%;
-      word-wrap: break-word;
-      text-align: justify;
-      margin-left: 20px;
-  }
-
-  h4 {
-      font-size: 1em;
-      max-width: 80%;
-      text-align: justify;
-      word-wrap: break-word;
-      font-weight: normal;
-      text-indent: 2em;
-  }
-
-  h3 {
-    font-size: 1.5em;
-    max-width: 100%;
-    word-wrap: break-word;
   }
 
   .body {
@@ -263,18 +258,6 @@ onMounted(fetchUserProfile);
       flex-direction: column;
   }
   
-  .logo {
-      width: 50px; /* Kích thước logo */
-      height: 50px;
-      position: absolute;
-      top: 10px;
-      left: 0;
-      animation: moveLogo 3s linear infinite alternate;
-  }
-  @keyframes moveLogo {
-      0% { left: 0; }
-      100% { left: calc(100% - 10px); } /* Icon di chuyển qua lại */
-  }
   .nav {
       margin-top: 10px;
   }
@@ -367,23 +350,6 @@ onMounted(fetchUserProfile);
       font-size: 12px;
   }        
 
-  .header-logo {
-      position: relative;
-
-      animation: wave 2s ease-in-out infinite;
-  }
-
-  @keyframes wave {
-      0% { transform: translateY(0px); }
-      50% { transform: translateY(10px); }
-      100% { transform: translateY(0px); }
-  }
-
-  .header-logo img {
-      width: 400px; /* Điều chỉnh kích thước logo */
-      height: auto;
-  }
-
   .contact-info {
       text-align: center;
       color: white;
@@ -437,7 +403,7 @@ onMounted(fetchUserProfile);
       border-radius: 10px;
       padding: 20px;
       margin: 20px auto;
-      width: 700px; /* Chiều rộng khung đăng nhập */
+      width: 750px; /* Chiều rộng khung */
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
   }
   
@@ -464,12 +430,11 @@ onMounted(fetchUserProfile);
   margin-bottom: 20px;
 }
 
-.avatar {
+.avatar-upload img {
   width: 100px;
   height: 100px;
   border-radius: 50%;
   object-fit: cover;
-  margin-bottom: 10px;
 }
 
 input[type="file"] {
@@ -492,6 +457,7 @@ input {
   border-radius: 4px;
   cursor: pointer;
   font-size: 16px;
+  width: 100%;
 }
 
 .btn-update:hover {

@@ -38,8 +38,8 @@
             <p>{{ translations[language].orLoginWith }}</p>
             
             <div class="social-login">
-              <button type="button" class="social-btn google " ><i class='bx bxl-google'></i>&nbsp;&nbsp;{{ translations[language].loginWithGoogle }}</button>
-              <button type="button" class="social-btn facebook" ><i class='bx bxl-facebook-circle'></i>&nbsp;&nbsp;{{ translations[language].loginWithFacebook }}</button>
+              <button type="button" class="btn-login"  @click="loginWithGoogle" ><i class='bx bxl-google'></i>&nbsp;&nbsp;{{ translations[language].loginWithGoogle }}</button>
+             
             </div>
 
           </form>
@@ -85,6 +85,26 @@
   import {ref, computed, reactive } from 'vue';
   import { inject } from "vue";
   import axios from "axios";
+  import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+
+
+  // Đăng nhập Google với Firebase
+  const auth = getAuth();
+  const provider = new GoogleAuthProvider();
+
+  const loginWithGoogle = async () => {
+  try {
+    const result = await signInWithPopup(auth, provider);
+    console.log("Đăng nhập thành công:", result.user);
+
+    // Lưu user vào localStorage để giữ trạng thái sau khi chuyển trang
+    localStorage.setItem("user", JSON.stringify(result.user));
+
+    router.push("/home"); // Điều hướng ngay sau khi đăng nhập
+  } catch (error) {
+    console.error("Lỗi đăng nhập:", error);
+  }
+};
 
   // Biến lưu tên đăng nhập và mật khẩu
   const username = ref("");

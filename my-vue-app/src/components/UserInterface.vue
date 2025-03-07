@@ -73,11 +73,10 @@
   import {ref, computed } from 'vue';
   import { inject } from "vue";
   
-    // Declare reactive variables
 
   const language = ref(inject("language"));
   const toggleLanguage = inject("toggleLanguage");
-  // Declare the translations object
+
   const translations = {
     vi: {
       login: "Đăng Nhập",
@@ -111,12 +110,8 @@
     }
   };
   
-
-  
-  // Computed property to get the current translations based on the selected language
+// Chuyển đổi ngôn ngữ
   const currentTranslations = computed(() => translations[language.value]);
-  
-  // Methods for handling language change
 
   </script>
   

@@ -16,15 +16,12 @@
               <div class="dropdown">
                 <button class="btn btn-secondary dropdown-toggle avatar-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                   <div class="avatar-container">
-                    <img :src="user?.avatar || defaultAvatar" class="rounded-circle avatar-img" alt="User Avatar">
+                    <img src="../assets/default_avatar.png" class="rounded-circle avatar-img" alt="User Avatar">                  
                   </div>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                   <li class="dropdown-header text-center">
-                    <div class="avatar-container" style="width: 155px; height: 155px;">
-                      <img :src="user?.avatar || defaultAvatar" class="rounded-circle avatar-img" alt="User Avatar">
-                    </div>
-                    <p class="fw-bold">{{ user.name }}</p>
+                    <p class="fw-bold">{{ user?.fullname || "Người dùng" }}</p>
                   </li>
                   <li><hr class="dropdown-divider"></li>
                   <li><a class="dropdown-item" href="#" @click="goToAccountInfo" >{{ translations[language].accountInfo }}</a></li>
@@ -39,16 +36,16 @@
 
         <div class="home-page">
           <h1>Open Deep Researcher - AI Research Assistant</h1>
-          <input v-model="userQuery" placeholder="Nhập câu hỏi của bạn..." />
+          <input v-model="userQuery" :placeholder="translations[language].enterQuestion" />
           <button @click="runGradio" :disabled="loading">
-            {{ loading ? 'Đang tải...' : 'Bắt đầu tìm kiếm' }}
+            {{ loading ? translations[language].loadingTopic : translations[language].startSearch }}
           </button>
           <div v-if="result">
-            <h2>Kết quả:</h2>
+            <h2>{{translations[language].finalResult}}</h2>
             <pre>{{ result }}</pre>
             <!-- Nút tải về file -->
-            <button @click="downloadReport('doc')" :disabled="!result">Tải về Word</button>
-            <button @click="downloadReport('pdf')" :disabled="!result">Tải về PDF</button>
+            <button @click="downloadReport('doc')" :disabled="!result">{{ translations[language].downloadWord }}</button>
+            <button @click="downloadReport('pdf')" :disabled="!result">{{ translations[language].downloadPDF }}</button>
           </div>
         </div>
 
@@ -84,6 +81,8 @@
   import { ref, computed, onMounted } from 'vue';
   import { inject } from "vue";
   import { useRouter } from 'vue-router';
+
+  const router = useRouter() ;
 
 // Hàm tạo báo cáo tự động
 const userQuery = ref('');
@@ -165,70 +164,47 @@ const downloadReport = async (fileType) => {
   }
 };
 
-// const downloadReport = async (fileType) => {
-//   if (!result.value) {
-//     alert('Không có kết quả để tải về!');
-//     return;
-//   }
+const user = ref(null);
 
-//   try {
-//     const response = await fetch('/api/download-report/', {
-//       method: 'POST',
-//       headers: {
-//         'Content-Type': 'application/json',
-//       },
-//       body: JSON.stringify({
-//         content: result.value, // Nội dung từ kết quả
-//         file_type: fileType,   // Loại file: 'doc' hoặc 'pdf'
-//       }),
-//     });
-
-//     if (!response.ok) {
-//       throw new Error(`Lỗi HTTP: ${response.status}`);
-//     }
-
-//     // Xử lý tải file
-//     const blob = await response.blob();
-//     const url = window.URL.createObjectURL(blob);
-//     const a = document.createElement('a');
-//     a.href = url;
-//     a.download = fileType === 'doc' ? 'report.docx' : 'report.pdf';
-//     document.body.appendChild(a);
-//     a.click();
-//     document.body.removeChild(a);
-//     window.URL.revokeObjectURL(url);
-//   } catch (error) {
-//     console.error('Lỗi khi tải file:', error);
-//     alert('Đã xảy ra lỗi khi tải file.');
-//   }
-// };
-
-
-  const user = ref({
-    avatar: "",  // Ảnh mặc định (nếu chưa có dữ liệu)
-    name: "Người dùng"
-  });
-
-  const defaultAvatar = "../assets/default_avatar.png";
-
-  const router = useRouter() ;
-
-
-  // Gọi API lấy thông tin user
-  const fetchUser = async () => {
-    try {
-      const response = await fetch("http://localhost:5000/user");
-      const data = await response.json();
-      if (data) {
-        user.value = data; // Gán dữ liệu từ API vào user
-      }
-    } catch (error) {
-      console.error("Lỗi khi lấy dữ liệu người dùng:", error);
+const fetchUserProfile = async () => {
+  try {
+    const token = localStorage.getItem("token"); // Lấy token từ localStorage
+    if (!token) {
+      throw new Error("Token không tồn tại");
     }
-  };
+
+    const response = await fetch("/api/user/profile", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`, // Gửi token trong header
+      },
+    });
+
+    console.log("Response từ API:", response); // Debug
+
+    if (!response.ok) {
+      throw new Error(`Lỗi HTTP: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("Thông tin người dùng:", data);
+    return data;
+  } catch (error) {
+    console.error("Lỗi khi lấy thông tin người dùng:", error);
+    return null;
+  }
+};
+
+onMounted(async () => {
+  const userData = await fetchUserProfile();
+  if (userData) {
+    user.value = userData;
+  }
+});
+
 
   // Gọi API khi component được mount
-  onMounted(fetchUser);
+  // onMounted(fetchUser);
 
   const logout = () => {
     localStorage.removeItem("token");
@@ -250,7 +226,13 @@ const downloadReport = async (fileType) => {
       accountInfo: "Thông tin tài khoản",
       upgradePlan: "Nâng cấp gói",
       logout: "Đăng xuất",
-      user: "Người dùng"
+      user: "Người dùng",
+      enterQuestion: "Nhập chủ đề nghiên cứu....",
+      loadingTopic: "Đang tải",
+      startSearch: "Bắt đầu tìm kiếm thông tin", 
+      finalResult: " Kết quả", 
+      downloadWord: "Tải về Word",
+      downloadPDF: "Tải về PDF"
     },
     en: {
       contactTitle: "For further details, please contact:",
@@ -260,7 +242,13 @@ const downloadReport = async (fileType) => {
       accountInfo: "Account Information",
       upgradePlan: "Upgrade Plan",
       logout: "Logout",
-      user: "User"
+      user: "User",
+      enterQuestion: "Enter research topic....",
+      loadingTopic: "Loading",
+      startSearch: "Start searching",
+      finalResult: "Result",
+      downloadWord: "Download Word",
+      downloadPDF: "Download PDF"
     }
   };
 

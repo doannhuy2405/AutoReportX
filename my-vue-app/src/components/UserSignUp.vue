@@ -48,11 +48,15 @@
             <p>{{ translations[language].orLoginWith }}</p>
 
             <div class="social-login">
-              <button type="button" class="social-btn google " ><i class='bx bxl-google'></i>&nbsp;&nbsp;{{ translations[language].loginWithGoogle }}</button>
-              <button type="button" class="social-btn facebook" ><i class='bx bxl-facebook-circle'></i>&nbsp;&nbsp;{{ translations[language].loginWithFacebook }}</button>
+              <button type="button" class="btn-login" @click="loginWithGoogle"><i class='bx bxl-google'></i>&nbsp;&nbsp;{{ translations[language].loginWithGoogle }}</button>
+              <p v-if="errorMessage" style="color: red;">{{ errorMessage }}</p>
+              <div v-if="user">
+                <h3>{{ translations[language].loginSuccess }}, {{ user.displayName }}</h3>
+                <img :src="user.photoURL" alt="Avatar" width="50" />
+              </div>
             </div>
-            
           </form>
+          
           <p class="signin-link">
               {{ translations[language].haveAccount }}
               <button class="btn-signin" @click="goToLogin">
@@ -93,6 +97,26 @@
   import { inject } from 'vue';
   import {ref, computed, reactive } from 'vue';
   import axios from "axios";
+  import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+
+
+  // Đăng nhập Google với Firebase
+  const auth = getAuth();
+  const provider = new GoogleAuthProvider();
+
+  const loginWithGoogle = async () => {
+  try {
+    const result = await signInWithPopup(auth, provider);
+    console.log("Đăng nhập thành công:", result.user);
+
+    // Lưu user vào localStorage để giữ trạng thái sau khi chuyển trang
+    localStorage.setItem("user", JSON.stringify(result.user));
+
+    router.push("/home"); // Điều hướng ngay sau khi đăng nhập
+  } catch (error) {
+    console.error("Lỗi đăng nhập:", error);
+  }
+};
 
   const router = useRouter();
   const language = ref(inject("language"));
@@ -123,7 +147,8 @@
       signupSuccess: "Đăng ký thành công!",
       orLoginWith: "Hoặc đăng nhập với:",
       loginWithFacebook: "Đăng nhập với Facebook",
-      loginWithGoogle: "Đăng nhập với Google"
+      loginWithGoogle: "Đăng nhập với Google",
+      loginSuccess: "Xin chào"
     },
     en: {
       contactTitle: "For further details, please contact:",
@@ -147,7 +172,8 @@
       signupSuccess: "Sign up successful!",
       orLoginWith: "Or log in with:",
       loginWithGoogle: "Log in with Google",
-      loginWithFacebook: "Log in with Facebook"
+      loginWithFacebook: "Log in with Facebook",
+      loginSuccess: "Hi"
     }
   };
 
