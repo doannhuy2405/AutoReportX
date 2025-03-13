@@ -15,30 +15,23 @@
   
           <br><br>
 
-          <div v-if="user">
-            <p>{{ translations[language].sayHiWithUser }}, {{ user.fullname }}</p>
-            <!-- <img :src="user.avatar" alt="User Avatar" style="width: 100px; height: 100px; border-radius: 50%;" /> -->
+          <div v-if="user" style="font-size: 2em;">
+            <p>{{ translations[language].sayHiWithUser }}, {{ user.fullname }}!</p>
           </div>
 
           <div class="auth-form">
             <h2>{{ translations[language].profileTitle }}</h2>
             <form @submit.prevent="updateProfile">
 
-              <!-- Avatar và upload -->
-              <div class="avatar-upload">
-                <input type="file" @change="handleAvatarUpload" accept="image/*" />
-                <img :src="avatarPreview || require('@/assets/default_avatar.png')" alt="Avatar" />
-              </div>
-
               <!-- Thông tin người dùng -->
               <div class="form-group">
                 <label for="fullname">{{ translations[language].fullnameLabel }}</label>
-                <input v-model="user.fullname" type="text" required />
+                <input id="fullname" v-model="user.fullname" type="text" disabled readonly />
               </div>
 
               <div class="form-group">
                 <label for="email">{{ translations[language].emailLabel }}</label>
-                <input v-model="user.email" type="email" required />
+                <input id="email" v-model="user.email" type="email" disabled readonly />
               </div>
 
               <div class="form-group">
@@ -53,6 +46,7 @@
                   v-model="user.password"
                   id="password"
                   :placeholder="translations[language].passwordPlaceholder"
+                  autocomplete="off"
                 />
               </div>
 
@@ -96,6 +90,9 @@
   import {ref, computed, onMounted } from 'vue';
   import { inject } from "vue";
   import axios from "axios";
+  import { useRouter } from "vue-router"; 
+
+  const router = useRouter(); // Khởi tạo router
   
 // Lấy ngôn ngữ từ inject
   const language = ref(inject("language"));
@@ -111,100 +108,47 @@
     password: "",
   });
 
-const avatarPreview = ref(''); // Hiển thị preview avatar
-const avatarFile = ref(null); // File avatar được chọn
+  const token = localStorage.getItem("token");
 
-
-// // API để lấy thông tin người dùng
-// const fetchUserProfile = async () => {
-//   try {
-//     const token = localStorage.getItem("token");
-//     if (!token) {
-//       alert("⚠️ Bạn chưa đăng nhập!");
-//       return;
-//     }
-
-//     const response = await axios.get("/api/user/profile", {
-//       headers: { Authorization: `Bearer ${token}` },
-//     });
-
-//     Object.assign(user, response.data);
-//     avatarPreview.value = user.avatar || require("@/assets/default_avatar.png"); // Sử dụng avatar mặc định nếu không có
-//     console.log("✅ Lấy thông tin user thành công:", response.data);
-//   } catch (error) {
-//     console.error("❌ Lỗi khi lấy thông tin user:", error);
-//     alert("⚠️ Không thể lấy thông tin tài khoản!");
-//   }
-// };
-
-// Lấy thông tin người dùng từ localStorage hoặc API
-onMounted(() => {
-  const savedUser = localStorage.getItem('user');
-  if (savedUser) {
-    user.value = JSON.parse(savedUser);
-    avatarPreview.value = user.value.avatar; // Hiển thị avatar hiện tại
-  }
-});
-
-
-// Xử lý upload avatar
-const handleAvatarUpload = (event) => {
-  const file = event.target.files[0];
-  if (file) {
-    // Kiểm tra định dạng file
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      alert('Chỉ chấp nhận file JPG, PNG, WEBP!');
-      return;
-    }
-
-    // Kiểm tra kích thước file (giới hạn 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Kích thước ảnh quá lớn! (Tối đa 2MB)');
-      return;
-    }
-
-    // Hiển thị preview avatar
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      avatarPreview.value = e.target.result;
-    };
-    reader.readAsDataURL(file);
-
-    avatarFile.value = file; // Lưu file để gửi lên server
-  }
-};
-
-// Cập nhật thông tin tài khoản
-const updateProfile = async () => {
+// API lấy thông tin user từ backend
+const getUserInfo = async () => {
   try {
-    const formData = new FormData();
-    formData.append("fullname", user.value.fullname);
-    formData.append("email", user.value.email);
-
-    if (user.value.password) {
-      formData.append("password", user.value.password); // Chỉ gửi nếu có nhập
-    }
-    if (avatarFile.value) {
-       formData.append("avatar", avatarFile.value);
-    }
-    const token = localStorage.getItem("token");
-    const response = await axios.put("/api/user/profile", formData, {
-      headers: { 
-        Authorization: `Bearer ${token}`, 
-        "Content-Type": "multipart/form-data" },
+    const response = await axios.get("/api/user/profile", {
+      headers: { Authorization: `Bearer ${token}` },
     });
 
-    // Cập nhật thông tin người dùng trong localStorage
-    user.value.avatar = response.data.avatar;
-    localStorage.setItem('user', JSON.stringify(user.value));
-
-    alert("🎉 Cập nhật thông tin thành công!");
+    user.value = response.data;
   } catch (error) {
-    console.error("❌ Lỗi cập nhật:", error);
-    alert("⚠️ Cập nhật thông tin thất bại!");
+    console.error("❌ Lỗi lấy thông tin user:", error);
   }
 };
 
+// API cập nhật email & password
+const updateProfile = async () => {
+  try {
+    await axios.put(
+      "/api/user/profile",
+      {
+        email: user.value.email,
+        password: user.value.password,
+      },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    alert("✅ Cập nhật thành công!");
+    user.value.password = ""; // Reset password sau khi cập nhật
+
+    // Chuyển hướng sang trang Home sau khi cập nhật
+    router.push("/home");
+  } catch (error) {
+    console.error("❌ Lỗi cập nhật:", error);
+    alert("⚠ Lỗi khi cập nhật!");
+  }
+};
+
+onMounted(getUserInfo);
 
   const translations = {
     vi: {
@@ -218,7 +162,8 @@ const updateProfile = async () => {
       contactEmail: "📧 Email: yb2207580@student.ctu.edu.vn",
       contactPhone: "📞 Hotline: 0848-077-996 Hoặc 0559-285-596",
       contactAddress: "📍 Địa chỉ: Trường Công nghệ Thông tin & Truyền thông",
-      sayHiWithUser: "Xin chào"
+      sayHiWithUser: "Xin chào", 
+      passwordPlaceholder: "Nhập vào mật khẩu mới..."
     },
     en: {
       profileTitle: "Account Information",
@@ -231,7 +176,8 @@ const updateProfile = async () => {
       contactEmail: "📧 Email: yb2207580@student.ctu.edu.vn",
       contactPhone: "📞 Hotline: 0848-077-996 or 0559-285-596",
       contactAddress: "📍 Address: College of Information and Communication Technology, Can Tho University",
-      sayHiWithUser: "Hi"
+      sayHiWithUser: "Hi",
+      passwordPlaceholder: "Enter new password..."
     }
   };
   </script>

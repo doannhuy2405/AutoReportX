@@ -170,6 +170,7 @@ def decode_token(token: str):
         raise HTTPException(status_code=401, detail="Invalid token")
     
 
+# API lấy thông tin người dùng
 @app.get("/user/profile")
 async def get_user_profile(token: str = Depends(oauth2_scheme)):
     # Giải mã token để lấy username
@@ -188,18 +189,21 @@ async def get_user_profile(token: str = Depends(oauth2_scheme)):
     }
 
 # API cập nhật thông tin người dùng
+from fastapi import Request
+
 @app.put("/user/profile")
-async def update_user_profile(
-    fullname: str = None,
-    email: str = None,
-    password: str = None,
-    token: str = Depends(oauth2_scheme)
-):
+async def update_user_profile(request: Request, token: str = Depends(oauth2_scheme)):
     try:
         username = decode_token(token)
         user = users_collection.find_one({"username": username})
         if not user:
             raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
+
+        # Nhận dữ liệu từ request JSON
+        data = await request.json()
+        fullname = data.get("fullname")
+        email = data.get("email")
+        password = data.get("password")
 
         update_data = {}
         if fullname:
@@ -207,10 +211,15 @@ async def update_user_profile(
         if email:
             update_data["email"] = email
         if password:
-            update_data["password"] = hash_password(password)
+            hashed_password = hash_password(password)
+            print(f"🔹 DEBUG: Mật khẩu mới (chưa hash): {password}")
+            print(f"🔹 DEBUG: Mật khẩu mới (đã hash): {hashed_password}")
+            update_data["password"] = hashed_password
 
-        # Cập nhật vào MongoDB
-        users_collection.update_one({"username": username}, {"$set": update_data})
+        if update_data:
+            print(f"🔹 DEBUG: Dữ liệu cập nhật: {update_data}")
+            users_collection.update_one({"username": username}, {"$set": update_data})
+            print(f"✅ DEBUG: Cập nhật MongoDB thành công cho user {username}")
 
         return {"message": "Cập nhật thông tin thành công"}
     except HTTPException as e:
@@ -220,87 +229,11 @@ async def update_user_profile(
         raise HTTPException(status_code=500, detail="Lỗi server khi cập nhật thông tin người dùng")
 
 
-# # API lấy thông tin người dùng
-# @app.get("/user/profile")
-# async def get_user_profile(token: str = Depends(oauth2_scheme)):
-    
-#     # Giải mã token để lấy username
-#     username = decode_token(token)
-    
-#     #Tìm thông tin trong MongoDB
-#     user = users_collection.find_one({"username": username})
-#     if not user:
-#         raise HTTPException(status_code=404, detail="User not found")
-
-#     # Trả về thông tin người dùng
-#     return {
-#         "fullname": user.get("fullname", ""),
-#         "email": user.get("email", ""),
-#         "username": user.get("username", ""),
-#         "avatar": user.get("avatar", "/uploads/default_avatar.png")  # Đường dẫn tuyệt đối
-#     }
-
-
-# # API cập nhật thông tin người dùng
-# @app.put("/user/profile")
-# async def update_user_profile(
-#     fullname: str = None,
-#     email: str = None,
-#     password: str = None,
-#     avatar: UploadFile = File(None),
-#     token: str = Depends(oauth2_scheme)
-# ):
-#     try:
-#         username = decode_token(token)
-#         user = users_collection.find_one({"username": username})
-#         if not user:
-#             raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
-
-#         update_data = {}
-#         if fullname:
-#             update_data["fullname"] = fullname
-#         if email:
-#             update_data["email"] = email
-#         if password:
-#             update_data["password"] = hash_password(password)
-#         if avatar:
-#             # Kiểm tra định dạng file
-#             if avatar.content_type not in ["image/jpeg", "image/png", "image/webp"]:
-#                 raise HTTPException(status_code=400, detail="Chỉ chấp nhận file JPG, PNG, WEBP!")
-
-#             # Kiểm tra kích thước file (giới hạn 2MB)
-#             if avatar.size > 2 * 1024 * 1024:
-#                 raise HTTPException(status_code=400, detail="Kích thước ảnh quá lớn! (Tối đa 2MB)")
-
-#             # Lưu avatar vào thư mục uploads
-#             file_extension = avatar.filename.split(".")[-1]
-#             unique_filename = f"{uuid.uuid4()}.{file_extension}"
-#             avatar_path = f"uploads/{unique_filename}"
-
-#             with open(avatar_path, "wb") as buffer:
-#                 buffer.write(avatar.file.read())
-
-#             update_data["avatar"] = f"/{avatar_path}"
-
-#         # Cập nhật vào MongoDB
-#         users_collection.update_one({"username": username}, {"$set": update_data})
-
-#         return {"message": "Cập nhật thông tin thành công", "avatar": update_data.get("avatar", user.get("avatar"))}
-#     except HTTPException as e:
-#         raise e
-#     except Exception as e:
-#         print("❌ Lỗi cập nhật:", e)
-#         raise HTTPException(status_code=500, detail="Lỗi server khi cập nhật thông tin người dùng")
-
-# Tạo thư mục uploads nếu chưa tồn tại
-if not os.path.exists("uploads"):
-    os.makedirs("uploads")
-
 
 # Gọi hàm từ AutoReportX.py 
 class QueryRequest(BaseModel):
     user_query: str
-    iteration_limit: int = 5
+    iteration_limit: int = 1
 
 @app.post("/predict/")
 async def predict(request: QueryRequest):
