@@ -2,13 +2,12 @@ import jwt
 import os
 import bcrypt
 import uvicorn
-import uuid
 import pypandoc
 from fastapi.responses import StreamingResponse
 from datetime import datetime, timedelta
 from fastapi.middleware.cors import CORSMiddleware
 from AutoReportX import run_gradio, create_word_file, create_pdf_file #Import hànm từ AutoReportX
-from fastapi import FastAPI, HTTPException, Depends, status, File, UploadFile, Response
+from fastapi import FastAPI, HTTPException, Depends, File, UploadFile
 from pymongo import MongoClient
 from pydantic import BaseModel
 from dotenv import load_dotenv

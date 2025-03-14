@@ -25,7 +25,6 @@
                   </li>
                   <li><hr class="dropdown-divider"></li>
                   <li><a class="dropdown-item" href="#" @click="goToAccountInfo" >{{ translations[language].accountInfo }}</a></li>
-                  <li><a class="dropdown-item" href="#">{{ translations[language].upgradePlan }}</a></li>
                   <li><hr class="dropdown-divider"></li>
                   <li><a class="dropdown-item text-danger" href="#" @click="logout">{{ translations[language].logout }}</a></li>
                 </ul>
@@ -224,7 +223,6 @@ onMounted(async () => {
       contactPhone: "📞 Hotline: 0848-077-996 Hoặc 0559-285-596",
       contactAddress: "📍 Địa chỉ: Trường Công nghệ Thông tin & Truyền thông, Đại học Cần Thơ",
       accountInfo: "Thông tin tài khoản",
-      upgradePlan: "Nâng cấp gói",
       logout: "Đăng xuất",
       user: "Người dùng",
       enterQuestion: "Nhập chủ đề nghiên cứu....",
@@ -240,7 +238,6 @@ onMounted(async () => {
       contactPhone: "📞 Hotline: 0848-077-996 or 0559-285-596",
       contactAddress: "📍 Address: College of Information and Communication Technology, Can Tho University",
       accountInfo: "Account Information",
-      upgradePlan: "Upgrade Plan",
       logout: "Logout",
       user: "User",
       enterQuestion: "Enter research topic....",

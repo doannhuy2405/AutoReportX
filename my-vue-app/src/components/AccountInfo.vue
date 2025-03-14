@@ -31,7 +31,7 @@
 
               <div class="form-group">
                 <label for="email">{{ translations[language].emailLabel }}</label>
-                <input id="email" v-model="user.email" type="email" disabled readonly />
+                <input id="email" v-model="user.email" type="email" required />
               </div>
 
               <div class="form-group">
@@ -297,7 +297,7 @@ onMounted(getUserInfo);
   }        
 
   .contact-info {
-      text-align: center;
+      text-align: left;
       color: white;
       font-size: 16px;
       padding: 20px;

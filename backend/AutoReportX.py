@@ -329,6 +329,13 @@ from reportlab.lib.pagesizes import letter # type: ignore
 from reportlab.pdfgen import canvas # type: ignore
 from reportlab.lib.units import inch # type: ignore
 from reportlab.pdfbase.pdfmetrics import stringWidth # type: ignore
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+
+# Đăng ký font
+font_path = r"C:\NLCS_KHMT_2025\backend\font\times.ttf"  # Đảm bảo đường dẫn đúng
+pdfmetrics.registerFont(TTFont("Times New Roman", font_path))
+
 
 def create_pdf_file(content, filename='report.pdf'):
     try:
@@ -337,8 +344,8 @@ def create_pdf_file(content, filename='report.pdf'):
         pdf = canvas.Canvas(file_stream, pagesize=letter)
 
         # Đặt font và kích thước
-        font_name = "Times-Roman"
-        font_size = 12
+        font_name = "Times New Roman"
+        font_size = 13
         pdf.setFont(font_name, font_size)
 
         # Giới hạn chiều rộng trang (trừ lề)
@@ -394,20 +401,6 @@ def create_pdf_file(content, filename='report.pdf'):
         print(f"Lỗi khi tạo file PDF: {str(e)}")
         raise e
 
-
-
-# import pdfkit  # type: ignore
-# from io import BytesIO
-
-# def create_pdf_file(content, filename='report.pdf'):
-#     options = {
-#         'encoding': "UTF-8",
-#         'quiet': ''
-#     }
-#     file_stream = BytesIO()
-#     pdfkit.from_string(content, file_stream, options=options)
-#     file_stream.seek(0)
-#     return file_stream, filename
 
 # ==============================================================================
 # Giao diện Gradio
