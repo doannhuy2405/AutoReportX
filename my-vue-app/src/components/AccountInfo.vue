@@ -54,6 +54,13 @@
               <button type="submit" class="btn-update">
                 {{ translations[language].updateButton }}
               </button>
+
+              <p>{{ translations[language].noChanges }}?</p>
+
+              <button @click="router.push('/home')" class="btn-update">
+                {{ translations[language].homeButton }}
+              </button>
+
             </form>
           </div>
   
@@ -126,6 +133,23 @@ const getUserInfo = async () => {
 // API cập nhật email & password
 const updateProfile = async () => {
   try {
+    // Gửi yêu cầu lấy thông tin hiện tại của người dùng từ MongoDB
+    const response = await axios.get("/api/user/profile", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const currentUser = response.data; // Thông tin hiện tại trong MongoDB
+
+    // Kiểm tra nếu email và mật khẩu không thay đổi
+    if (
+      user.value.email === currentUser.email &&
+      user.value.password === currentUser.password
+    ) {
+      alert("⚠ Email hoặc mật khẩu không có thay đổi!");
+      return; // Dừng cập nhật
+    }
+
+    // Nếu có thay đổi, thực hiện cập nhật
     await axios.put(
       "/api/user/profile",
       {
@@ -148,6 +172,7 @@ const updateProfile = async () => {
   }
 };
 
+
 onMounted(getUserInfo);
 
   const translations = {
@@ -163,7 +188,9 @@ onMounted(getUserInfo);
       contactPhone: "📞 Hotline: 0848-077-996 Hoặc 0559-285-596",
       contactAddress: "📍 Địa chỉ: Trường Công nghệ Thông tin & Truyền thông",
       sayHiWithUser: "Xin chào", 
-      passwordPlaceholder: "Nhập vào mật khẩu mới..."
+      passwordPlaceholder: "Nhập vào mật khẩu mới...",
+      homeButton: "Quay về trang chủ",
+      noChanges: "Nếu bạn không có bất kỳ thay đổi gì"
     },
     en: {
       profileTitle: "Account Information",
@@ -177,7 +204,9 @@ onMounted(getUserInfo);
       contactPhone: "📞 Hotline: 0848-077-996 or 0559-285-596",
       contactAddress: "📍 Address: College of Information and Communication Technology, Can Tho University",
       sayHiWithUser: "Hi",
-      passwordPlaceholder: "Enter new password..."
+      passwordPlaceholder: "Enter new password...",
+      homeButton: "Go to Home",
+      noChanges: "If you have not made any changes"
     }
   };
   </script>

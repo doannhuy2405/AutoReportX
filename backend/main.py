@@ -3,19 +3,20 @@ import os
 import bcrypt
 import uvicorn
 import pypandoc
+import firebase_admin
 from fastapi.responses import StreamingResponse
 from datetime import datetime, timedelta
 from fastapi.middleware.cors import CORSMiddleware
 from AutoReportX import run_gradio, create_word_file, create_pdf_file #Import hànm từ AutoReportX
-from fastapi import FastAPI, HTTPException, Depends, File, UploadFile
+from fastapi import FastAPI, HTTPException, Depends
 from pymongo import MongoClient
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from bson import ObjectId
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from typing import Optional
-from fastapi.staticfiles import StaticFiles
+from firebase_admin import auth
+from firebase_admin import credentials
+
 #--------------------------------------------------------------------------------
 
 # Tải pandoc tích hợp sẵn
@@ -26,6 +27,14 @@ load_dotenv()
 
 # Khởi tạo FastAPI
 app = FastAPI()
+
+# Khởi tạo Firebase Admin SDK
+cred = credentials.Certificate("firebase_credentials.json")  # Đường dẫn đến file JSON từ Firebase
+firebase_admin.initialize_app(cred)
+
+# Schema nhận token từ frontend
+class GoogleLoginRequest(BaseModel):
+    token: str
 
 # Cấu hình CORS
 app.add_middleware(
@@ -156,9 +165,47 @@ async def login(user: UserLogin):
         "fullname": db_user["fullname"],
     }
     
+    
+# Đăng nhập với Google
+@app.post("/auth/google-login")
+async def google_login(id_token: str):
+    try:
+        decoded_token = auth.verify_id_token(id_token)  # Xác thực token Google
+        uid = decoded_token["uid"]
+        email = decoded_token.get("email", "")
+        name = decoded_token.get("name", "")
+        photo = decoded_token.get("picture", "")
+
+        # Kiểm tra nếu user đã tồn tại
+        existing_user = users_collection.find_one({"uid": uid})
+        if not existing_user:
+            user_data = {
+                "uid": uid,
+                "email": email,
+                "username": email.split("@")[0],  # Lấy username từ email
+                "fullname": name,
+                "photo": photo,
+            }
+            users_collection.insert_one(user_data)  # Lưu vào MongoDB
+        else:
+            user_data = existing_user
+
+        # Tạo token JWT
+        token_data = {"username": user_data["username"], "email": user_data["email"]}
+        token = create_token(token_data)
+
+        return {
+            "message": "Đăng nhập thành công",
+            "token": token,
+            "username": user_data["username"],
+            "fullname": user_data["fullname"],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=str(e))
 
 # Cấu hình OAuth2
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+
 
 # Hàm giải mã token
 def decode_token(token: str):

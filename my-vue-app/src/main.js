@@ -16,7 +16,7 @@ import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 const firebaseConfig = {
   apiKey: "",
   authDomain: "",
-  projectId: "autoreportx-3357d",
+  projectId: "",
   storageBucket: "",
   messagingSenderId: "",
   appId: "",

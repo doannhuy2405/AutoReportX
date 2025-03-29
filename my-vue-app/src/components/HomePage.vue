@@ -21,7 +21,7 @@
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                   <li class="dropdown-header text-center">
-                    <p class="fw-bold">{{ user?.fullname || "Người dùng" }}</p>
+                    <p class="fw-bold">{{ user?.fullname || "Người dùng Google" }}</p>
                   </li>
                   <li><hr class="dropdown-divider"></li>
                   <li><a class="dropdown-item" href="#" @click="goToAccountInfo" >{{ translations[language].accountInfo }}</a></li>

@@ -100,19 +100,22 @@
   import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 
 
-  // Đăng nhập Google với Firebase
-  const auth = getAuth();
-  const provider = new GoogleAuthProvider();
+// Đăng nhập Google với Firebase
+const auth = getAuth();
+const provider = new GoogleAuthProvider();
 
-  const loginWithGoogle = async () => {
+const loginWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, provider);
-    console.log("Đăng nhập thành công:", result.user);
+    const user = result.user;
+    const token = await getIdToken(user);
 
-    // Lưu user vào localStorage để giữ trạng thái sau khi chuyển trang
-    localStorage.setItem("user", JSON.stringify(result.user));
+    // Gửi token lên backend
+    const response = await axios.post("/auth/google-login", {
+      id_token: token,
+    });
 
-    router.push("/home"); // Điều hướng ngay sau khi đăng nhập
+    console.log("Đăng nhập thành công:", response.data);
   } catch (error) {
     console.error("Lỗi đăng nhập:", error);
   }
