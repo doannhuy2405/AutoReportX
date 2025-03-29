@@ -14,7 +14,6 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from firebase_admin import auth
 from firebase_admin import credentials
 
 #--------------------------------------------------------------------------------
@@ -28,8 +27,14 @@ load_dotenv()
 # Khởi tạo FastAPI
 app = FastAPI()
 
+# Lấy đường dẫn từ biến môi trường
+firebase_cred_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+
+if not firebase_cred_path:
+    raise ValueError("⚠️ Không tìm thấy biến môi trường GOOGLE_APPLICATION_CREDENTIALS!")
+
 # Khởi tạo Firebase Admin SDK
-cred = credentials.Certificate("firebase_credentials.json")  # Đường dẫn đến file JSON từ Firebase
+cred = credentials.Certificate(firebase_cred_path)
 firebase_admin.initialize_app(cred)
 
 # Schema nhận token từ frontend
