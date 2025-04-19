@@ -3,7 +3,7 @@ import os
 import bcrypt
 import uvicorn
 import pypandoc
-import firebase_admin
+import firebase_admin # type: ignore
 import traceback
 from fastapi.responses import StreamingResponse
 from datetime import datetime, timedelta
@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from firebase_admin import auth, credentials
+from firebase_admin import auth, credentials # type: ignore
 
 #--------------------------------------------------------------------------------
 
