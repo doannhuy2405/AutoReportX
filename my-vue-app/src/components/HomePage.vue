@@ -21,7 +21,7 @@
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
                   <li class="dropdown-header text-center">
-                    <p class="fw-bold">{{ user?.fullname || "Người dùng Google" }}</p>
+                    <p class="fw-bold">{{ user?.fullname }}</p>
                   </li>
                   <li><hr class="dropdown-divider"></li>
                   <li><a class="dropdown-item" href="#" @click="goToAccountInfo" >{{ translations[language].accountInfo }}</a></li>
@@ -90,7 +90,7 @@ const loading = ref(false);
 
   const runGradio = async () => {
   if (!userQuery.value.trim()) {
-    alert('Vui lòng nhập câu hỏi!');
+    alert('Vui lòng nhập đề tài!');
     return;
   }
 

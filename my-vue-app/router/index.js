@@ -7,7 +7,7 @@ import UserInterface from '@/components/UserInterface.vue';
 import UserLogin from '@/components/UserLogin.vue';
 import UserSignUp from '@/components/UserSignUp.vue';
 import HomePage from '@/components/HomePage.vue';
-import AccountInfo from '@/components/AccountInfo.vue';
+import AccountInformation from '@/components/AccountInformation.vue';
 
 // Tạo danh sách các routes
 const routes = [
@@ -34,7 +34,7 @@ const routes = [
   {
     path: '/accountinfo',
     name: 'accountinfo',
-    component: AccountInfo
+    component: AccountInformation
   }
 ];
 

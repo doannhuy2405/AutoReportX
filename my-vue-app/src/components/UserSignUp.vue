@@ -101,27 +101,55 @@
 
 
 // Đăng nhập Google với Firebase
+const router = useRouter();
 const auth = getAuth();
 const provider = new GoogleAuthProvider();
 
 const loginWithGoogle = async () => {
   try {
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
-    const token = await getIdToken(user);
+    // 1. Đăng nhập bằng popup Google
+    const result = await signInWithPopup(auth, provider)
+    const user = result.user
+    
+    // 2. Lấy ID token
+    const idToken = await user.getIdToken()
+    console.log("Google ID Token:", idToken) // Debug token
 
-    // Gửi token lên backend
-    const response = await axios.post("/auth/google-login", {
-      id_token: token,
-    });
+    // 3. Gửi token lên backend
+    const response = await axios.post("/api/auth/google-login", {
+      token: idToken  // Đổi tên thành 'token' để khớp với backend
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
 
-    console.log("Đăng nhập thành công:", response.data);
+    // 4. Xử lý kết quả
+    if (response.data.success) {
+      console.log("Đăng nhập thành công:", response.data)
+      localStorage.setItem('token', response.data.token)
+      router.push('/home') // Chuyển hướng sau khi đăng nhập
+    } else {
+      errors.google = response.data.message || "Đăng nhập thất bại"
+    }
+    
   } catch (error) {
-    console.error("Lỗi đăng nhập:", error);
+    console.error("Lỗi đăng nhập Google:", error)
+    
+    // Phân loại lỗi chi tiết
+    if (error.response) {
+      // Lỗi từ phía server
+      errors.google = error.response.data.detail || "Lỗi server"
+    } else if (error.code === 'auth/popup-closed-by-user') {
+      errors.google = "Bạn đã đóng cửa sổ đăng nhập"
+    } else {
+      errors.google = "Lỗi hệ thống, vui lòng thử lại"
+    }
   }
-};
+}
 
-  const router = useRouter();
+
+
   const language = ref(inject("language"));
   const toggleLanguage = inject("toggleLanguage");
 

@@ -333,7 +333,7 @@ from reportlab.pdfbase.ttfonts import TTFont # type: ignore
 from reportlab.pdfbase import pdfmetrics # type: ignore
 
 # Đăng ký font
-font_path = r"C:\NLCS_KHMT_2025\backend\font\times.ttf"  # Đảm bảo đường dẫn đúng
+font_path = r"C:\Source_Code_AutoReportX\backend\font\times.ttf"  # Đảm bảo đường dẫn đúng
 pdfmetrics.registerFont(TTFont("Times New Roman", font_path))
 
 

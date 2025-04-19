@@ -4,19 +4,24 @@ import bcrypt
 import uvicorn
 import pypandoc
 import firebase_admin
+import traceback
 from fastapi.responses import StreamingResponse
 from datetime import datetime, timedelta
 from fastapi.middleware.cors import CORSMiddleware
 from AutoReportX import run_gradio, create_word_file, create_pdf_file #Import hànm từ AutoReportX
-from fastapi import FastAPI, HTTPException, Depends
-from pymongo import MongoClient
+from fastapi import FastAPI, HTTPException, Depends, Request 
+from pymongo import MongoClient, ReturnDocument
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from firebase_admin import credentials
+from firebase_admin import auth, credentials
 
 #--------------------------------------------------------------------------------
+
+# Xóa app cũ nếu tồn tại
+if firebase_admin._DEFAULT_APP_NAME in firebase_admin._apps:
+    firebase_admin.delete_app(firebase_admin.get_app())
 
 # Tải pandoc tích hợp sẵn
 pypandoc.download_pandoc()
@@ -37,6 +42,11 @@ if not firebase_cred_path:
 cred = credentials.Certificate(firebase_cred_path)
 firebase_admin.initialize_app(cred)
 
+# Thêm vào startup
+print("🔥 Khởi tạo Firebase...")
+print(f"🔹 Path: {firebase_cred_path}")
+print(f"🔹 App: {firebase_admin.get_app().name}")
+
 # Schema nhận token từ frontend
 class GoogleLoginRequest(BaseModel):
     token: str
@@ -48,6 +58,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Kết nối MongoDB
@@ -171,42 +182,105 @@ async def login(user: UserLogin):
     }
     
     
-# Đăng nhập với Google
+# Endpoint kiểm tra thông tin 
+@app.get("/auth/check-user-by-email/{email}")
+async def check_user_by_email(email: str):
+    user = users_collection.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+@app.get("/auth/check-user-by-uid/{uid}")
+async def check_user_by_uid(uid: str):
+    user = users_collection.find_one({"uid": uid})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user    
+    
+    
+# Endpoint đăng nhập Google
 @app.post("/auth/google-login")
-async def google_login(id_token: str):
+async def google_login(request: Request):
     try:
-        decoded_token = auth.verify_id_token(id_token)  # Xác thực token Google
+        data = await request.json()
+        id_token = data.get("token")
+        
+        if not id_token:
+            raise HTTPException(status_code=400, detail="Thiếu token Google")
+
+        # 1. Xác thực với Firebase
+        decoded_token = auth.verify_id_token(id_token)
         uid = decoded_token["uid"]
-        email = decoded_token.get("email", "")
-        name = decoded_token.get("name", "")
-        photo = decoded_token.get("picture", "")
+        email = decoded_token.get("email")
+        name = decoded_token.get("name", "Người dùng Google")
+        picture = decoded_token.get("picture", "")
+        
+        if not email:
+            raise HTTPException(status_code=400, detail="Token không chứa email")
 
-        # Kiểm tra nếu user đã tồn tại
-        existing_user = users_collection.find_one({"uid": uid})
-        if not existing_user:
-            user_data = {
-                "uid": uid,
-                "email": email,
-                "username": email.split("@")[0],  # Lấy username từ email
-                "fullname": name,
-                "photo": photo,
-            }
-            users_collection.insert_one(user_data)  # Lưu vào MongoDB
-        else:
-            user_data = existing_user
+        # 2. Tạo/Tìm user trong MongoDB (sử dụng upsert)
+        user_data = {
+            "uid": uid,
+            "email": email,
+            "username": email.split("@")[0],  # Tạo username từ email
+            "fullname": name,
+            "photo": picture,
+            "last_login": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
 
-        # Tạo token JWT
-        token_data = {"username": user_data["username"], "email": user_data["email"]}
-        token = create_token(token_data)
+        # Sử dụng find_one_and_update với upsert
+        result = users_collection.find_one_and_update(
+            {"email": email},
+            {
+                "$set": user_data,
+                "$setOnInsert": {
+                    "created_at": datetime.utcnow(),
+                    "roles": ["user"],
+                    "password": ""  # Trường password rỗng cho user Google
+                }
+            },
+            upsert=True,
+            return_document=ReturnDocument.AFTER
+        )
+
+        if not result:
+            raise HTTPException(status_code=500, detail="Không thể lưu user vào database")
+
+        # 3. Tạo JWT token
+        token_data = {
+            "sub": str(result["_id"]),
+            "username": result["username"],
+            "email": email,
+            "exp": datetime.utcnow() + timedelta(days=1)
+        }
+        token = jwt.encode(token_data, SECRET_KEY, algorithm="HS256")
 
         return {
-            "message": "Đăng nhập thành công",
+            "success": True,
             "token": token,
-            "username": user_data["username"],
-            "fullname": user_data["fullname"],
+            "user": {
+                "id": str(result["_id"]),
+                "username": result["username"],
+                "email": email,
+                "fullname": name,
+                "photo": picture
+            }
         }
+
     except Exception as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        print(f"🔥 Lỗi: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Lỗi server: {str(e)}")
+    
+
+#Endpoint kiểm tra user
+@app.get("/auth/debug/user/{email}")
+async def debug_user(email: str):
+    user = users_collection.find_one({"email": email})
+    if not user:
+        return {"error": "User not found"}
+    return user
+
 
 # Cấu hình OAuth2
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
