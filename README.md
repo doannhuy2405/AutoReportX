@@ -1,7 +1,7 @@
-# Hệ thống AutoReportX: Tìm kiếm, trích xuất nội dung, đánh giá thông tin và tạo báo cáo tự động
+0# Hệ thống AutoReportX: Tìm kiếm, trích xuất nội dung, đánh giá thông tin và tạo báo cáo tự động
 AutoReportX được thiết kế nhằm tối ưu hóa việc thu thập, tìm kiếm tin thông và tạo báo cáo.
 
-AutoReportX được phát triển bằng Visual Studio Code, sử dụng Vue.js làm framework và tận dụng Bootstrap để thiết kế giao diện kết hợp với HTML, CSS và JavaScript. Backend sử dụng Python kết hợp với FastAPI để xây dụng, trong khi MongoDB đóng vai trò là cơ sở dữ liệu chính. Cùng với đó là sự kết hợp các external APIs như OpenAI API, Tavily API, TogetherAI API và Firebase được tích hợp xử lý xác thực quản lý đăng nhập từ tài khoản Google.
+AutoReportX được phát triển bằng Visual Studio Code, sử dụng Vue.js làm framework và tận dụng Bootstrap để thiết kế giao diện kết hợp với HTML, CSS và JavaScript. Backend sử dụng Python kết hợp với FastAPI để xây dựng, trong khi MongoDB đóng vai trò là cơ sở dữ liệu chính. Cùng với đó là sự kết hợp các external APIs như OpenAI API, Tavily API, TogetherAI API và Firebase được tích hợp xử lý xác thực quản lý đăng nhập từ tài khoản Google.
 
 HƯỚNG DẪN CÀI ĐẶT HỆ THỐNG AUTOREPORTX:
 
