@@ -37,21 +37,7 @@ HỖ TRỢ ĐA NGÔN NGỮ
    - Tiếng Anh
 
 KIẾN TRÚC HỆ THỐNG
-Người dùng
- │
- ▼
-Frontend (Vue.js)
- │
- ▼
-Backend (FastAPI)
- │
- ├── MongoDB
- │
- ├── Tavily API
- │
- ├── TogetherAI API
- │
- └── OpenAI API
+Người dùng --> Frontend (Vue.js) --> Backend (FastAPI) | MongoDB | Tavily API │ TogetherAI API | OpenAI API |
  
 QUY TRÌNH HOẠT ĐỘNG
 1. Người dùng nhập đề tài nghiên cứu.
@@ -64,15 +50,15 @@ QUY TRÌNH HOẠT ĐỘNG
 8. Cho phép tải báo cáo PDF hoặc DOCX.
 
 CHỨC NĂNG CHÍNH
-Chức năng	                  Mô tả
-Tìm kiếm thông tin         	Thu thập dữ liệu từ nhiều nguồn
-Trích xuất nội dung         	Tự động lấy thông tin quan trọng
-Tóm tắt bằng AI	            Tổng hợp nội dung nghiên cứu
-Đánh giá thông tin	         Phân tích độ tin cậy dữ liệu
-Tạo báo cáo	                  Sinh báo cáo tự động
-Xuất PDF	                     Tải báo cáo PDF
-Xuất DOCX	                  Tải báo cáo Word
-Quản lý tài khoản	            Đăng ký, đăng nhập và cập nhật thông tin
+1. Chức năng	                  Mô tả
+2. Tìm kiếm thông tin         	Thu thập dữ liệu từ nhiều nguồn
+3. Trích xuất nội dung         	Tự động lấy thông tin quan trọng
+4. Tóm tắt bằng AI	            Tổng hợp nội dung nghiên cứu
+5. Đánh giá thông tin	         Phân tích độ tin cậy dữ liệu
+6. Tạo báo cáo	                  Sinh báo cáo tự động
+7. Xuất PDF	                     Tải báo cáo PDF
+8. Xuất DOCX	                  Tải báo cáo Word
+9. Quản lý tài khoản	            Đăng ký, đăng nhập và cập nhật thông tin
 
 #HƯỚNG DẪN CÀI ĐẶT HỆ THỐNG AUTOREPORTX:
 
@@ -195,9 +181,8 @@ Quản lý tài khoản	            Đăng ký, đăng nhập và cập nhật t
    - npm run serve (Hoặc npm run dev tùy phiên bản)
 
 
-TÁC GIẢ
-Đoàn Thị Như Ý
-Sinh viên ngành Khoa học Máy tính - Trường Công nghệ Thông tin & Truyền thông, Đại học Cần Thơ
+#TÁC GIẢ
+Đoàn Thị Như Ý, sinh viên ngành Khoa học Máy tính - Trường Công nghệ Thông tin & Truyền thông, Đại học Cần Thơ
 
    
            
