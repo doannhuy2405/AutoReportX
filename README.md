@@ -1,9 +1,80 @@
 # Hệ thống AutoReportX: Tìm kiếm, trích xuất nội dung, đánh giá thông tin và tạo báo cáo tự động
 AutoReportX được thiết kế nhằm tối ưu hóa việc thu thập, tìm kiếm tin thông và tạo báo cáo.
 
-AutoReportX được phát triển bằng Visual Studio Code, sử dụng Vue.js làm framework và tận dụng Bootstrap để thiết kế giao diện kết hợp với HTML, CSS và JavaScript. Backend sử dụng Python kết hợp với FastAPI để xây dựng, trong khi MongoDB đóng vai trò là cơ sở dữ liệu chính. Cùng với đó là sự kết hợp các external APIs như OpenAI API, Tavily API, TogetherAI API và Firebase được tích hợp xử lý xác thực quản lý đăng nhập từ tài khoản Google.
+AutoReportX là hệ thống hỗ trợ nghiên cứu ứng dụng trí tuệ nhân tạo (AI), giúp tự động hóa quá trình tìm kiếm thông tin, trích xuất nội dung, đánh giá độ tin cậy và tạo báo cáo.
 
-HƯỚNG DẪN CÀI ĐẶT HỆ THỐNG AUTOREPORTX:
+Người dùng chỉ cần nhập chủ đề nghiên cứu, hệ thống sẽ tự động:
+
+   - Tìm kiếm thông tin từ nhiều nguồn
+   - Trích xuất nội dung quan trọng
+   - Đánh giá độ tin cậy của dữ liệu
+   - Tổng hợp và tạo báo cáo
+   - Xuất báo cáo dưới dạng PDF hoặc DOCX
+Mục tiêu của AutoReportX là giảm thời gian nghiên cứu thủ công và nâng cao hiệu quả tổng hợp thông tin.
+
+CHỨC NĂNG NỔI BẬT
+   - Tìm kiếm và nghiên cứu bằng AI
+   - Sinh truy vấn tìm kiếm tự động
+   - Thu thập dữ liệu từ nhiều nguồn
+   - Trích xuất nội dung thông minh
+   - Tóm tắt và tổng hợp thông tin
+   - Đánh giá chất lượng dữ liệu
+   - Tạo báo cáo tự động
+
+QUẢN LÝ NGƯỜI DÙNG
+   - Đăng ký tài khoản
+   - Đăng nhập hệ thống
+   - Đăng nhập bằng Google
+   - Xác thực JWT
+   - Quản lý thông tin cá nhân
+
+XUẤT BÁO CÁO
+   - PDF
+   - DOCX
+
+HỖ TRỢ ĐA NGÔN NGỮ
+   - Tiếng Việt
+   - Tiếng Anh
+
+KIẾN TRÚC HỆ THỐNG
+Người dùng
+ │
+ ▼
+Frontend (Vue.js)
+ │
+ ▼
+Backend (FastAPI)
+ │
+ ├── MongoDB
+ │
+ ├── Tavily API
+ │
+ ├── TogetherAI API
+ │
+ └── OpenAI API
+ 
+QUY TRÌNH HOẠT ĐỘNG
+1. Người dùng nhập đề tài nghiên cứu.
+2. Hệ thống sinh các truy vấn tìm kiếm tối ưu.
+3. Tavily tìm kiếm các nguồn dữ liệu liên quan.
+4. Hệ thống trích xuất và lọc nội dung.
+5. AI phân tích và tổng hợp dữ liệu.
+6. Đánh giá độ tin cậy của thông tin.
+7. Sinh báo cáo hoàn chỉnh.
+8. Cho phép tải báo cáo PDF hoặc DOCX.
+
+CHỨC NĂNG CHÍNH
+Chức năng	                  Mô tả
+Tìm kiếm thông tin         	Thu thập dữ liệu từ nhiều nguồn
+Trích xuất nội dung         	Tự động lấy thông tin quan trọng
+Tóm tắt bằng AI	            Tổng hợp nội dung nghiên cứu
+Đánh giá thông tin	         Phân tích độ tin cậy dữ liệu
+Tạo báo cáo	                  Sinh báo cáo tự động
+Xuất PDF	                     Tải báo cáo PDF
+Xuất DOCX	                  Tải báo cáo Word
+Quản lý tài khoản	            Đăng ký, đăng nhập và cập nhật thông tin
+
+#HƯỚNG DẪN CÀI ĐẶT HỆ THỐNG AUTOREPORTX:
 
 1. Yêu cầu hệ thống
    - Node.js >= 16.x
@@ -122,6 +193,11 @@ HƯỚNG DẪN CÀI ĐẶT HỆ THỐNG AUTOREPORTX:
    Terminal 2: khởi chạy my-vue-app
    - cd my-vue-app
    - npm run serve (Hoặc npm run dev tùy phiên bản)
+
+
+TÁC GIẢ
+Đoàn Thị Như Ý
+Sinh viên ngành Khoa học Máy tính - Trường Công nghệ Thông tin & Truyền thông, Đại học Cần Thơ
 
    
            
