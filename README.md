@@ -60,7 +60,7 @@ CHỨC NĂNG CHÍNH
 8. Xuất DOCX	                  Tải báo cáo Word
 9. Quản lý tài khoản	            Đăng ký, đăng nhập và cập nhật thông tin
 
-#HƯỚNG DẪN CÀI ĐẶT HỆ THỐNG AUTOREPORTX:
+# HƯỚNG DẪN CÀI ĐẶT HỆ THỐNG AUTOREPORTX:
 
 1. Yêu cầu hệ thống
    - Node.js >= 16.x
@@ -181,7 +181,7 @@ CHỨC NĂNG CHÍNH
    - npm run serve (Hoặc npm run dev tùy phiên bản)
 
 
-#TÁC GIẢ
+# TÁC GIẢ
 Đoàn Thị Như Ý, sinh viên ngành Khoa học Máy tính - Trường Công nghệ Thông tin & Truyền thông, Đại học Cần Thơ
 
    
